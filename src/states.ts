@@ -1,4 +1,3 @@
-// Game States
 export type GameStateShape = {
    is_on_ground: boolean;
    is_shift_lock: boolean;
@@ -16,7 +15,6 @@ export const gameStates = createReactiveState<GameStateShape>({
    skill_toggle: true,
 });
 
-// Roblox States
 export type RobloxStateShape = {
    is_active: boolean;
 };

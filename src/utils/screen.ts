@@ -51,6 +51,13 @@ export function getPixelRGB(point: [number, number]): RGB | null {
    return colorrefToRGB(colorref);
 }
 
+export function getMultiplePixelRGB(points: [number, number][]): (RGB | null)[] {
+   const dc = getDesktopDC();
+   if (!dc) return points.map(() => null);
+
+   return points.map(([x, y]) => colorrefToRGB(gdi32.symbols.GetPixel(dc, x, y)));
+}
+
 export function checkPixelColor(
    point: [number, number],
    target: [number, number, number],

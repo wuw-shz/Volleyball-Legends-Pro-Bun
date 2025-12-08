@@ -1,39 +1,38 @@
 import { keyboard, mouse } from "winput";
 import { robloxStates } from "../states";
-import type { HandlerMap } from "./types";
-
-interface InputEvent {
-   name?: string;
-   button?: string;
-}
+import type { Handler, InputType } from "./types";
 
 export function createInputListener(
-   inputType: "keyboard" | "mouse",
-   handlers: HandlerMap,
-   getKey: (ev: InputEvent) => string
+   inputType: InputType,
+   handlers: Handler[]
 ): void {
+   const handlerMap = new Map<string, Handler>();
+   for (const handler of handlers) {
+      handlerMap.set(handler.name, handler);
+   }
+
    if (inputType === "keyboard") {
       keyboard.listener.on("down", (ev) => {
          if (!robloxStates.get("is_active")) return;
-         const handler = handlers[ev.name];
+         const handler = handlerMap.get(ev.name);
          handler?.on?.down?.();
       });
 
       keyboard.listener.on("up", (ev) => {
          if (!robloxStates.get("is_active")) return;
-         const handler = handlers[ev.name];
+         const handler = handlerMap.get(ev.name);
          handler?.on?.up?.();
       });
    } else {
       mouse.listener.on("down", (ev) => {
          if (!robloxStates.get("is_active")) return;
-         const handler = handlers[ev.button];
+         const handler = handlerMap.get(ev.button);
          handler?.on?.down?.();
       });
 
       mouse.listener.on("up", (ev) => {
          if (!robloxStates.get("is_active")) return;
-         const handler = handlers[ev.button];
+         const handler = handlerMap.get(ev.button);
          handler?.on?.up?.();
       });
    }

@@ -1,14 +1,15 @@
 declare var self: Worker;
 let gamePort: MessagePort;
 import "../global";
-import { isRobloxForeground, isRobloxFullscreen } from "../utils";
+import { isRobloxActiveFullscreen } from "../utils";
 
 const workerLog = new Logger(["WORKER", "magenta"], ["ROBLOX", "gray"]);
 
 let active = false;
 
 function update() {
-   const isNowActive = isRobloxForeground() && isRobloxFullscreen();
+   const { active: isActive, fullscreen } = isRobloxActiveFullscreen();
+   const isNowActive = isActive && fullscreen;
    if (isNowActive !== active) {
       active = isNowActive;
       workerLog.info(`${isNowActive ? "active" : "inactive"}`);

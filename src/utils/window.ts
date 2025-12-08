@@ -8,6 +8,10 @@ export interface WindowInfo {
    isFullscreen: boolean;
 }
 
+const textDecoder = new TextDecoder("utf-16le");
+const titleBuffer = new Uint16Array(256);
+const rectBuffer = new Int32Array(4);
+
 export function isWindowFullscreen(
    hwnd: number,
    rect: { left: number; top: number; right: number; bottom: number }
@@ -42,37 +46,30 @@ export function getForegroundWindowInfo(): WindowInfo | null {
    const hwnd = user32.symbols.GetForegroundWindow();
    if (!hwnd) return null;
 
-   const bufferSize = 512;
-   const buffer = new Uint16Array(bufferSize);
-   const length = user32.symbols.GetWindowTextW(hwnd, ptr(buffer), bufferSize);
+   const length = user32.symbols.GetWindowTextW(hwnd, ptr(titleBuffer), 256);
 
    let title = "";
    if (length > 0) {
-      const decoder = new TextDecoder("utf-16le");
-      title = decoder.decode(buffer.slice(0, length));
+      title = textDecoder.decode(titleBuffer.subarray(0, length));
    }
 
-   const rectBuffer = new Int32Array(4);
    const success = user32.symbols.GetWindowRect(hwnd, ptr(rectBuffer));
 
    if (!success) return null;
 
-   const isFullscreen = isWindowFullscreen(Number(hwnd), {
+   const rect = {
       left: rectBuffer[0],
       top: rectBuffer[1],
       right: rectBuffer[2],
       bottom: rectBuffer[3],
-   });
+   };
+
+   const isFullscreen = isWindowFullscreen(Number(hwnd), rect);
 
    return {
       hwnd: Number(hwnd),
       title,
-      rect: {
-         left: rectBuffer[0],
-         top: rectBuffer[1],
-         right: rectBuffer[2],
-         bottom: rectBuffer[3],
-      },
+      rect,
       isFullscreen,
    };
 }

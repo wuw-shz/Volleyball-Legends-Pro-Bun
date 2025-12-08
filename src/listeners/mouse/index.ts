@@ -1,10 +1,5 @@
-import type { HandlerMap } from "../types";
-import * as x1 from "./x1";
-import * as x2 from "./x2";
-import * as left from "./left";
+import type { Handler } from "../types";
+import x1 from "./x1";
+import x2 from "./x2";
 
-export const mouseHandlers: HandlerMap = {
-   x1,
-   x2,
-   left,
-};
+export const mouseHandlers: Handler[] = [x1, x2];
