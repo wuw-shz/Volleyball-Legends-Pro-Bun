@@ -79,7 +79,7 @@ if (shouldCommit) {
    console.timeEnd("commit");
 }
 
-if (shouldRun && buildSuccess && compileSuccess) {
+if (shouldRun && buildSuccess && compileSuccess && commitSuccess) {
    if (shouldBuild) await $`bun run dist/index.js`;
    else if (shouldCompile) await $`./vvb.exe`;
 }
