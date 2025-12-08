@@ -1,13 +1,11 @@
 {
-   "dependencies": {
-      "winput": "^2.1.7"
-   },
    "name": "vvb1",
    "module": "src/index.ts",
    "type": "module",
    "private": true,
    "devDependencies": {
-      "@types/bun": "latest"
+      "@types/bun": "latest",
+      "winput": "latest"
    },
    "peerDependencies": {
       "typescript": "^5"
