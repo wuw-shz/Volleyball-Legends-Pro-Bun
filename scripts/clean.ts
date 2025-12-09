@@ -1,24 +1,44 @@
 import { Glob } from "bun";
 
-const glob = new Glob("**/*.ts");
 const excludeDirs = ["node_modules", "dist", "scripts"];
 
-for await (const file of glob.scan({ cwd: ".", onlyFiles: true })) {
-  // Skip excluded directories
-  if (excludeDirs.some((dir) => file.startsWith(dir + "/"))) continue;
+export async function runClean(): Promise<boolean> {
+  console.time("clean");
+  console.log("Cleaning comments...");
 
-  const content = await Bun.file(file).text();
+  try {
+    const glob = new Glob("**/*.ts");
+    let cleanedCount = 0;
 
-  // Remove comments while preserving strings
-  const cleaned = removeComments(content);
+    for await (const file of glob.scan({ cwd: ".", onlyFiles: true })) {
+      if (excludeDirs.some((dir) => file.startsWith(dir + "/"))) continue;
 
-  if (cleaned !== content) {
-    await Bun.write(file, cleaned);
-    console.log(`Cleaned: ${file}`);
+      const content = await Bun.file(file).text();
+      const cleaned = removeComments(content);
+
+      if (cleaned !== content) {
+        await Bun.write(file, cleaned);
+        console.log(`  Cleaned: ${file}`);
+        cleanedCount++;
+      }
+    }
+
+    console.log(
+      cleanedCount > 0
+        ? `Clean Complete. (${cleanedCount} files)`
+        : "Clean Complete. (no changes)",
+    );
+    console.timeEnd("clean");
+    console.log();
+    return true;
+  } catch (error) {
+    console.error("Clean Failed:");
+    console.error(error);
+    console.timeEnd("clean");
+    console.log();
+    return false;
   }
 }
-
-console.log("Done!");
 
 function removeComments(code: string): string {
   let result = "";
@@ -42,7 +62,6 @@ function removeComments(code: string): string {
     }
     // Handle single-line comments
     else if (code[i] === "/" && code[i + 1] === "/") {
-      // Skip until newline
       while (i < code.length && code[i] !== "\n") i++;
     }
     // Handle multi-line comments
@@ -84,12 +103,10 @@ function removeComments(code: string): string {
 }
 
 function isRegexStart(code: string, i: number): boolean {
-  // Look back to see if this could be a regex
   let j = i - 1;
   while (j >= 0 && /\s/.test(code[j])) j--;
   if (j < 0) return true;
 
   const prevChar = code[j];
-  // After these, a / is likely a regex
   return /[=(:,\[!&|?{};]/.test(prevChar);
 }

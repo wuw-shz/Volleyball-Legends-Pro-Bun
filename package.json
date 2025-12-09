@@ -12,12 +12,12 @@
     "typescript": "^5"
   },
   "scripts": {
-    "prettier": "bunx prettier --write .",
-    "clean": "bun run scripts/remove-comments.ts",
+    "prettier": "bun run scripts.ts --prettier",
+    "clean": "bun run scripts.ts --clean",
     "build": "bun run scripts.ts --build --run",
     "compile": "bun run scripts.ts --compile --run",
-    "commit": "bun run prettier && bun run scripts.ts --build --compile --commit",
-    "release": "bun run prettier && bun run scripts.ts --build --compile --commit --release",
+    "commit": "bun run scripts.ts --prettier --build --compile --commit",
+    "release": "bun run scripts.ts --prettier --build --compile --commit --release",
     "start": "bun run scripts.ts --run"
   }
 }
