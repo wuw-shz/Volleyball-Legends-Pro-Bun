@@ -1,21 +1,22 @@
 {
-   "name": "vbl-pro-ts",
-   "version": "1.0.0",
-   "module": "src/index.ts",
-   "type": "module",
-   "private": true,
-   "devDependencies": {
-      "@types/bun": "latest",
-      "winput": "latest"
-   },
-   "peerDependencies": {
-      "typescript": "^5"
-   },
-   "scripts": {
-      "build": "bun run scripts.ts --build --run",
-      "compile": "bun run scripts.ts --compile --run",
-      "commit": "bun run scripts.ts --build --compile --commit",
-      "release": "bun run scripts.ts --build --compile --commit --release",
-      "start": "bun run scripts.ts --run"
-   }
+  "name": "vbl-pro-ts",
+  "version": "1.0.0",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "winput": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "scripts": {
+    "prettier": "bunx prettier --write .",
+    "build": "bun run scripts.ts --build --run",
+    "compile": "bun run scripts.ts --compile --run",
+    "commit": "bun run scripts.ts --build --compile --commit",
+    "release": "bun run scripts.ts --build --compile --commit --release",
+    "start": "bun run scripts.ts --run"
+  }
 }
