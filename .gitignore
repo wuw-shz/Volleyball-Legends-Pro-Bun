@@ -1,6 +1,11 @@
 structure.ts
 structure.md
 bun.lock
+.version_backup
+
+vbl-pro-bun.zip
+vbl-pro-bun.exe
+vbl-pro-bun
 
 # dependencies (bun install)
 node_modules
@@ -36,7 +41,3 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
-
-# executables
-vbl-pro-bun.exe
-vbl-pro-bun

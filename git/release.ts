@@ -91,7 +91,7 @@ async function handleRelease() {
       }
    } else {
       console.log(`Creating release "${tagName}" ...`);
-      const result = await $`gh release create ${tagName} vbl-pro-bun.exe --generate-notes`;
+      const result = await $`gh release create ${tagName} vbl-pro-bun.zip --generate-notes`;
       
       if (result.exitCode !== 0) {
          console.error("Release Failed:");
