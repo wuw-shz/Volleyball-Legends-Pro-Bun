@@ -23,10 +23,6 @@ interface UpdateInfo {
   assetName: string;
 }
 
-/**
- * Compare two semantic version strings.
- * Returns: 1 if v1 > v2, -1 if v1 < v2, 0 if equal
- */
 function compareVersions(v1: string, v2: string): number {
   const normalize = (v: string) => v.replace(/^v/, "").split(".").map(Number);
   const [major1, minor1, patch1] = normalize(v1);
@@ -38,9 +34,6 @@ function compareVersions(v1: string, v2: string): number {
   return 0;
 }
 
-/**
- * Check for updates from GitHub releases.
- */
 export async function checkForUpdates(): Promise<UpdateInfo | null> {
   try {
     const response = await fetch(GITHUB_API_URL, {
@@ -64,7 +57,6 @@ export async function checkForUpdates(): Promise<UpdateInfo | null> {
       return null;
     }
 
-    // Find the zip asset
     const zipAsset = release.assets.find((asset) =>
       asset.name.endsWith(".zip"),
     );
@@ -85,9 +77,6 @@ export async function checkForUpdates(): Promise<UpdateInfo | null> {
   }
 }
 
-/**
- * Download the update zip file to a temporary directory.
- */
 export async function downloadUpdate(url: string): Promise<string> {
   const tempDir = join(tmpdir(), "vbl-pro-update");
 
@@ -112,9 +101,6 @@ export async function downloadUpdate(url: string): Promise<string> {
   return zipPath;
 }
 
-/**
- * Extract the exe from the zip file using PowerShell.
- */
 export async function extractUpdate(zipPath: string): Promise<string> {
   const tempDir = join(tmpdir(), "vbl-pro-update");
   const extractDir = join(tempDir, "extracted");
@@ -142,7 +128,6 @@ export async function extractUpdate(zipPath: string): Promise<string> {
     throw new Error(`Extraction failed: ${stderr}`);
   }
 
-  // Find the exe file in the extracted directory
   const files = await Array.fromAsync(
     new Bun.Glob("*.exe").scan({ cwd: extractDir }),
   );
@@ -155,20 +140,11 @@ export async function extractUpdate(zipPath: string): Promise<string> {
   return exePath;
 }
 
-/**
- * Apply the update by replacing the running executable.
- * Uses a batch script to work around Windows file locking.
- */
 export async function applyUpdate(newExePath: string): Promise<void> {
   const currentExePath = process.execPath;
   const tempDir = join(tmpdir(), "vbl-pro-update");
   const batchPath = join(tempDir, "update.bat");
 
-  // Create a batch script that:
-  // 1. Waits for the current process to exit
-  // 2. Replaces the old exe with the new one
-  // 3. Starts the new exe
-  // 4. Cleans up temp files
   const batchScript = `
 @echo off
 title VBL Pro Updater
@@ -203,23 +179,17 @@ exit
 
   logger.info("Applying update - application will restart...");
 
-  // Start the batch script detached
   spawn("cmd.exe", ["/c", batchPath], {
     detached: true,
     stdio: "ignore",
     windowsHide: false,
   }).unref();
 
-  // Give the batch script time to start
   await Bun.sleep(500);
 
-  // Exit the current process
   process.exit(0);
 }
 
-/**
- * Main update check and apply flow.
- */
 export async function runUpdateCheck(): Promise<void> {
   try {
     logger.info("Checking for updates...");
