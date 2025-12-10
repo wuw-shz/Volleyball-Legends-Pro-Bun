@@ -15,5 +15,6 @@ export function pauseListeners() {
   }
   if (keyboard.listener.isRunning) {
     keyboard.listener.stop();
+    keyboard.releaseAll();
   }
 }
