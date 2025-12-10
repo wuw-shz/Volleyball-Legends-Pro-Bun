@@ -1,7 +1,8 @@
+import "../global";
 import packageJson from "../../package.json" with { type: "json" };
 import { spawn } from "child_process";
 import { tmpdir } from "os";
-import { join } from "path";
+import { join, dirname, basename } from "path";
 import { existsSync, rmSync, mkdirSync, writeFileSync } from "fs";
 
 const GITHUB_API_URL =
@@ -140,8 +141,20 @@ export async function extractUpdate(zipPath: string): Promise<string> {
   return exePath;
 }
 
-export async function applyUpdate(newExePath: string): Promise<void> {
+export async function applyUpdate(
+  newExePath: string,
+  newVersion: string,
+): Promise<void> {
   const currentExePath = process.execPath;
+  const currentDir = dirname(currentExePath);
+  const currentExeName = basename(currentExePath);
+
+  const newExeName = currentExeName.replace(
+    /v[\d.]+\.exe$/i,
+    `v${newVersion}.exe`,
+  );
+  const targetExePath = join(currentDir, newExeName);
+
   const tempDir = join(tmpdir(), "vbl-pro-update");
   const batchPath = join(tempDir, "update.bat");
 
@@ -159,15 +172,20 @@ if "%ERRORLEVEL%"=="0" (
 )
 
 echo Applying update...
-copy /Y "${newExePath}" "${currentExePath}"
+copy /Y "${newExePath}" "${targetExePath}"
 if %ERRORLEVEL% neq 0 (
     echo Update failed!
     pause
     exit /b 1
 )
 
+if not "${currentExePath}"=="${targetExePath}" (
+    echo Removing old version...
+    del /F "${currentExePath}"
+)
+
 echo Update complete! Starting application...
-start "" "${currentExePath}"
+start "" "${targetExePath}"
 
 echo Cleaning up...
 timeout /t 2 /nobreak > nul
@@ -204,7 +222,7 @@ export async function runUpdateCheck(): Promise<void> {
 
     const zipPath = await downloadUpdate(updateInfo.downloadUrl);
     const exePath = await extractUpdate(zipPath);
-    await applyUpdate(exePath);
+    await applyUpdate(exePath, updateInfo.version);
   } catch (error) {
     logger.warn("Update failed, continuing with current version:", error);
   }
