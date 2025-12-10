@@ -5,7 +5,7 @@ bun.lock
 /build
 /dist
 
-config.json
+config.toml
 vbl-pro-bun.zip
 vbl-pro-bun.exe
 vbl-pro-bun

@@ -1,4 +1,5 @@
 import path, { dirname, join } from "path";
+import { parse } from "smol-toml";
 import { LoggerClass } from "./utils";
 
 const logger = new LoggerClass(["CONFIG", "yellow"]);
@@ -20,8 +21,8 @@ const isCompiled = !path
   .toLowerCase()
   .startsWith("bun");
 const configPath = isCompiled
-  ? join(dirname(process.execPath), "config.json")
-  : join(process.cwd(), "config.json");
+  ? join(dirname(process.execPath), "config.toml")
+  : join(process.cwd(), "config.toml");
 
 const toFileUrl = (p: string) =>
   `file:///${p.replace(/\\/g, "/").replace(/ /g, "%20")}`;
@@ -35,7 +36,7 @@ function validateConfig(raw: Partial<AppConfig>): AppConfig {
   };
 
   if (!VALID_SKILL_MODES.includes(merged.skill_mode)) {
-    logger.warn(
+    logger.error(
       `Invalid skill_mode: "${merged.skill_mode}". Valid values: ${VALID_SKILL_MODES.join(", ")}`,
     );
     process.exit(1);
@@ -49,7 +50,7 @@ export async function loadConfig(): Promise<AppConfig> {
     const file = Bun.file(configPath);
     if (await file.exists()) {
       const text = await file.text();
-      const parsed = JSON.parse(text) as Partial<AppConfig>;
+      const parsed = parse(text) as Partial<AppConfig>;
       config = validateConfig(parsed);
       logger.success(`Config loaded from: ${toFileUrl(configPath)}`);
     } else {
@@ -58,7 +59,7 @@ export async function loadConfig(): Promise<AppConfig> {
     }
   } catch (error) {
     logger.error("Error loading config:", error);
-    logger.warn("Please fix your config.json file and try again.");
+    logger.warn("Please fix your config.toml file and try again.");
     process.exit(1);
   }
 
@@ -69,11 +70,16 @@ export function getConfig(): AppConfig {
   return config;
 }
 
+function generateTomlWithComments(cfg: AppConfig): string {
+  return `skill_mode = "${cfg.skill_mode}"  # ${VALID_SKILL_MODES.join(", ")}
+`;
+}
+
 export async function saveConfig(newConfig: Partial<AppConfig>): Promise<void> {
   config = validateConfig({ ...config, ...newConfig });
 
   try {
-    await Bun.write(configPath, JSON.stringify(config, null, 2));
+    await Bun.write(configPath, generateTomlWithComments(config));
   } catch (error) {
     logger.error("Error saving config:", error);
   }

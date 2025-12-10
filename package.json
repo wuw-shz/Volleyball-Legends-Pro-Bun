@@ -2,8 +2,6 @@
   "name": "vbl-pro-ts",
   "version": "1.1.0",
   "module": "src/index.ts",
-  "type": "module",
-  "private": true,
   "devDependencies": {
     "@types/bun": "latest",
     "winput": "latest"
@@ -11,6 +9,7 @@
   "peerDependencies": {
     "typescript": "^5"
   },
+  "private": true,
   "scripts": {
     "prettier": "bun run scripts.ts --prettier",
     "build": "bun run scripts.ts --build --run",
@@ -18,5 +17,9 @@
     "commit": "bun run scripts.ts --prettier --commit",
     "release": "bun run scripts.ts --prettier --compile --commit --release",
     "start": "bun run scripts.ts --run"
+  },
+  "type": "module",
+  "dependencies": {
+    "smol-toml": "^1.5.2"
   }
 }
