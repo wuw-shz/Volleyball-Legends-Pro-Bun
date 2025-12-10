@@ -4,7 +4,8 @@
   "module": "src/index.ts",
   "devDependencies": {
     "@types/bun": "latest",
-    "winput": "latest"
+    "winput": "latest",
+    "smol-toml": "^1.5.2"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -18,8 +19,5 @@
     "release": "bun run scripts.ts --prettier --compile --commit --release",
     "start": "bun run scripts.ts --run"
   },
-  "type": "module",
-  "dependencies": {
-    "smol-toml": "^1.5.2"
-  }
+  "type": "module"
 }

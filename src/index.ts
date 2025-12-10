@@ -1,8 +1,8 @@
 import "./global";
 import "./config";
 import "./listeners";
-import { robloxDetection, gameDetection, terminateWorkers } from "./workers";
 import { releaseDesktopDC } from "./utils";
+import { robloxDetection, gameDetection, terminateWorkers } from "./workers";
 
 function shutdown(signal: string) {
   logger.info(`Received ${signal}, shutting down...`);
