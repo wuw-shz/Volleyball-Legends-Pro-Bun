@@ -1,6 +1,6 @@
 {
   "name": "vbl-pro-ts",
-  "version": "1.3.5",
+  "version": "1.3.6",
   "module": "src/index.ts",
   "devDependencies": {
     "@types/bun": "latest",
@@ -16,7 +16,7 @@
     "build": "bun run scripts.ts --build --run",
     "compile": "bun run scripts.ts --compile --run",
     "commit": "bun run scripts.ts --prettier --commit",
-    "release": "bun run scripts.ts --prettier --compile --commit --release",
+    "release": "bun run scripts.ts --prettier --commit --compile --release",
     "start": "bun run scripts.ts --run"
   },
   "type": "module"
