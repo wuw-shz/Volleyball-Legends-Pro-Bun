@@ -204,7 +204,7 @@ title VBL Pro Updater
 
 echo Waiting for application to close...
 :waitloop
-tasklist /FI "PID eq ${process.pid}" | find "${process.pid}" >nul
+tasklist /FI "PID eq ${process.pid}" 2>nul | find /I "PID" >nul
 if %errorlevel%==0 (
   timeout /t 1 >nul
   goto waitloop
