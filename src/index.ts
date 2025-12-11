@@ -1,3 +1,6 @@
+import packageJson from "../package.json" with { type: "json" };
+process.stdout.write(`\x1b]0;VBL Pro v${packageJson.version}\x07`);
+
 import "./global";
 import { runUpdateCheck } from "./utils/updater";
 
@@ -6,9 +9,6 @@ await runUpdateCheck();
 await import("./config");
 await import("./listeners");
 const { releaseDesktopDC } = await import("./utils");
-
-import packageJson from "../package.json" with { type: "json" };
-process.stdout.write(`\x1b]0;VBL Pro v${packageJson.version}\x07`);
 
 let terminateWorkers: (() => void) | undefined = undefined;
 
