@@ -117,16 +117,40 @@ function handleGameMessage(data: GameWorkerMessage): void {
 export let robloxDetection: Worker;
 export let gameDetection: Worker;
 
-async function initializeWorkers(): Promise<void> {
+export async function startWorkers(): Promise<{
+  robloxReady: boolean;
+  gameReady: boolean;
+}> {
   try {
     [robloxDetection, gameDetection] = await Promise.all([
       createWorker("roblox", WORKER_PATHS.roblox, { type: "module" }),
       createWorker("game", WORKER_PATHS.game, { type: "module" }),
     ]);
 
+    const robloxReadyPromise = new Promise<boolean>((res) => {
+      robloxDetection.addEventListener(
+        "message",
+        (ev) => {
+          if (ev.data.ready !== undefined) res(ev.data.ready);
+        },
+        { once: true },
+      );
+    });
+
+    const gameReadyPromise = new Promise<boolean>((res) => {
+      gameDetection.addEventListener(
+        "message",
+        (ev) => {
+          if (ev.data.ready !== undefined) res(ev.data.ready);
+        },
+        { once: true },
+      );
+    });
+
     const { port1, port2 } = new MessageChannel();
     robloxDetection.postMessage(port1, [port1]);
     gameDetection.postMessage(port2, [port2]);
+
     robloxDetection.onmessage = ({
       data,
     }: MessageEvent<RobloxWorkerMessage>) => {
@@ -138,6 +162,14 @@ async function initializeWorkers(): Promise<void> {
     };
 
     logger.success("Initialized successfully");
+
+    // Wait for ready messages
+    const [robloxReady, gameReady] = await Promise.all([
+      robloxReadyPromise,
+      gameReadyPromise,
+    ]);
+
+    return { robloxReady, gameReady };
   } catch (error) {
     logger.error("Failed to initialize:", error);
     throw error;
@@ -163,5 +195,3 @@ export function terminateWorkers(): void {
 process.on("beforeExit", () => {
   terminateWorkers();
 });
-
-await initializeWorkers();

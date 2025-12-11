@@ -23,6 +23,7 @@ export function createInputListener(
       const handler = handlerMap.get(ev.name);
       handler?.on?.up?.();
     });
+    logger.success("Keyboard listener started");
   } else {
     mouse.listener.on("down", (ev) => {
       if (!robloxStates.get("is_active")) return;
@@ -35,5 +36,6 @@ export function createInputListener(
       const handler = handlerMap.get(ev.button);
       handler?.on?.up?.();
     });
+    logger.success("Mouse listener started");
   }
 }
