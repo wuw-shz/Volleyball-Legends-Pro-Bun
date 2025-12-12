@@ -10,30 +10,36 @@ import {
   rollbackVersion,
   cleanupVersionBackup,
 } from "./scripts/version";
+import {
+  registerRollback,
+  markStageComplete,
+  executeRollback,
+  setupSigintHandler,
+  cleanup,
+} from "./scripts/rollback";
 
 const args = process.argv.slice(2);
 
 type TaskResult = { success: boolean; type: string };
 const results: TaskResult[] = [];
 
+// Setup global SIGINT handler for unified rollback
+setupSigintHandler();
+
 const bumpType = getBumpType(args);
 if (bumpType) {
-  await runBumpVersion(bumpType);
-}
-
-process.on("SIGINT", async () => {
-  console.log("\nProcess terminated by user.");
-  if (bumpType) {
+  // Register version rollback action
+  registerRollback("version", async () => {
     await rollbackVersion();
-  }
-  process.exit(1);
-});
+  });
+
+  await runBumpVersion(bumpType);
+  markStageComplete("version");
+}
 
 async function handleFailure(step: string): Promise<never> {
   console.error(`\n${step} failed!`);
-  if (bumpType) {
-    await rollbackVersion();
-  }
+  await executeRollback();
   process.exit(1);
 }
 
@@ -74,13 +80,18 @@ const allCommitSuccess =
 
 if (args.includes("--release") && allBuildSuccess && allCompileSuccess) {
   try {
-    await runZipAndRelease();
+    const releaseSuccess = await runZipAndRelease();
+    if (!releaseSuccess) {
+      await handleFailure("Release");
+    }
     await cleanupVersionBackup();
+    cleanup();
   } catch {
     await handleFailure("Release");
   }
 } else if (bumpType) {
   await cleanupVersionBackup();
+  cleanup();
 }
 
 if (

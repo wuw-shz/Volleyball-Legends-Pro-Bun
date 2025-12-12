@@ -1,20 +1,22 @@
-import { $ } from "bun";
+import { runGitCommit } from "./github/commit";
 
 export async function runCommit(): Promise<boolean> {
   console.time("commit");
   console.log("Committing...");
 
-  const result = await $`bun run scripts/github/commit.ts`;
-  const success = result.exitCode === 0;
-
-  if (!success) {
+  try {
+    const success = await runGitCommit();
+    if (success) {
+      console.log("Commit Complete.");
+    }
+    console.timeEnd("commit");
+    console.log();
+    return success;
+  } catch (error) {
     console.error("Commit Failed:");
-    console.error(result.stderr.toString());
-  } else {
-    console.log("Commit Complete.");
+    console.error(error);
+    console.timeEnd("commit");
+    console.log();
+    return false;
   }
-
-  console.timeEnd("commit");
-  console.log();
-  return success;
 }
