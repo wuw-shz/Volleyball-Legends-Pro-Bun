@@ -23,12 +23,10 @@ const args = process.argv.slice(2);
 type TaskResult = { success: boolean; type: string };
 const results: TaskResult[] = [];
 
-// Setup global SIGINT handler for unified rollback
 setupSigintHandler();
 
 const bumpType = getBumpType(args);
 if (bumpType) {
-  // Register version rollback action
   registerRollback("version", async () => {
     await rollbackVersion();
   });

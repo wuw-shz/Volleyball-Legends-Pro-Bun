@@ -17,7 +17,6 @@ export async function handleRelease(): Promise<boolean> {
     return true;
   }
 
-  // Register rollback action to delete the release if created
   registerRollback("release", async () => {
     console.log(`Deleting release ${tagName}...`);
     await $`gh release delete ${tagName} --yes`.quiet().nothrow();

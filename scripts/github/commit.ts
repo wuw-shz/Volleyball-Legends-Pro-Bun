@@ -55,18 +55,14 @@ export async function runGitCommit(): Promise<boolean> {
   let committed = false;
   let pushed = false;
 
-  // Register rollback action for commit
   registerRollback("commit", async () => {
     if (pushed) {
-      // If pushed, need to revert the remote as well
       await run(["git", "revert", "--no-commit", "HEAD"]);
       await run(["git", "commit", "-m", `Revert: ${message}`]);
       await run(["git", "push", "origin", "main"]);
     } else if (committed) {
-      // Only local commit, just reset
       await run(["git", "reset", "--soft", "HEAD~1"]);
     }
-    // If not committed yet, nothing to rollback
   });
 
   console.time(`Committing "${message}" ...`);
@@ -83,7 +79,6 @@ export async function runGitCommit(): Promise<boolean> {
   return true;
 }
 
-// Run standalone if executed directly
 if (import.meta.main) {
   runGitCommit().catch((err) => {
     console.error("Error:", err);

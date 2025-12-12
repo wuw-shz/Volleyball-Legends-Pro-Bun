@@ -15,7 +15,6 @@ export async function runZipAndRelease(): Promise<boolean> {
   const exePath = `build/vbl-pro-bun-v${version}.exe`;
   const zipPath = `build/vbl-pro-bun-v${version}.zip`;
 
-  // Register rollback to delete the zip file
   registerRollback("zip", async () => {
     const zipFile = Bun.file(zipPath);
     if (await zipFile.exists()) {
