@@ -82,8 +82,8 @@ export class LoggerClass {
     ...args: any[]
   ): string {
     const timestamp = this.getTimestamp();
-    const prefix = timestamp ? `[${this.colorize("gray", timestamp)}] ` : "";
-    const levelStr = this.colorize(color, `[${level}]`);
+    const prefix = timestamp ? `${this.colorize("dim", timestamp)} ` : "";
+    const levelStr = this.colorize(color, `${level}`);
 
     const tagStr =
       this.tags.length > 0
@@ -99,7 +99,7 @@ export class LoggerClass {
       )
       .join(" ");
 
-    return `${prefix}${levelStr}${tagStr} ${message}`;
+    return `${prefix}${this.colors.reset}${this.colors.bright}${levelStr}${this.colors.reset}${tagStr}${this.colors.reset} ${message}`;
   }
 
   debug(...args: any[]) {

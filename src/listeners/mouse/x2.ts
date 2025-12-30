@@ -8,7 +8,7 @@ function shouldAbort(): boolean {
   return (
     !robloxStates.get("is_active") ||
     gameStates.get("is_toss") ||
-    mouse.isPressed("x1")
+    (gameStates.get("is_on_ground") && !mouse.isPressed("x2"))
   );
 }
 
@@ -27,12 +27,12 @@ export default createHandler("x2", {
         )
           break;
 
-        if (gameStates.get("is_on_ground")) {
+        if (gameStates.get("is_on_ground") && !gameStates.get("is_on_air")) {
           const isShift = gameStates.get("is_shift_lock");
 
           if (!isShift) {
             keyboard.press("shift");
-            await Bun.sleep(25);
+            await Bun.sleep(20);
           }
 
           if (
@@ -41,12 +41,10 @@ export default createHandler("x2", {
             gameStates.get("is_skill_ready")
           ) {
             keyboard.tap("ctrl");
-            await waitFor(() => !gameStates.get("is_on_ground"), shouldAbort);
           } else {
             keyboard.tap("space");
-            await waitFor(() => !gameStates.get("is_on_ground"), shouldAbort);
-            keyboard.release("space");
           }
+          await waitFor(() => !gameStates.get("is_on_ground"), shouldAbort);
 
           if (!isShift) {
             keyboard.release("shift");

@@ -1,6 +1,9 @@
 import { keyboard, mouse } from "winput";
 import { robloxStates } from "../states";
+import { LoggerClass } from "../utils";
 import type { Handler, InputType } from "./types";
+
+const logger = new LoggerClass(["Listener", "cyan"]);
 
 export function createInputListener(
   inputType: InputType,
@@ -12,30 +15,30 @@ export function createInputListener(
   }
 
   if (inputType === "keyboard") {
-    keyboard.listener.on("down", (ev) => {
+    keyboard.listener.on.down((ev) => {
       if (!robloxStates.get("is_active")) return;
-      const handler = handlerMap.get(ev.name);
+      const handler = handlerMap.get(ev.key);
       handler?.on?.down?.();
     });
 
-    keyboard.listener.on("up", (ev) => {
+    keyboard.listener.on.up((ev) => {
       if (!robloxStates.get("is_active")) return;
-      const handler = handlerMap.get(ev.name);
+      const handler = handlerMap.get(ev.key);
       handler?.on?.up?.();
     });
-    logger.success("Keyboard listener started");
+    logger.info("Keyboard listener started");
   } else {
-    mouse.listener.on("down", (ev) => {
+    mouse.listener.on.down((ev) => {
       if (!robloxStates.get("is_active")) return;
       const handler = handlerMap.get(ev.button);
       handler?.on?.down?.();
     });
 
-    mouse.listener.on("up", (ev) => {
+    mouse.listener.on.up((ev) => {
       if (!robloxStates.get("is_active")) return;
       const handler = handlerMap.get(ev.button);
       handler?.on?.up?.();
     });
-    logger.success("Mouse listener started");
+    logger.info("Mouse listener started");
   }
 }

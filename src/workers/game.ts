@@ -2,108 +2,98 @@ declare var self: Worker;
 let robloxPort: MessagePort;
 import "../global";
 import { gameStates, robloxStates, type GameStateShape } from "../states";
-import { getMultiplePixelRGB, type RGB } from "../utils";
+import { GAME_WATCHER_CONFIGS, type GameWatchConfig } from "./config";
+import path from "path";
 
-const workerLog = new Logger(["WORKER", "magenta"], ["GAME", "gray"]);
+const workerLog = new Logger(["Worker", "cyan"], ["Game", "gray"]);
 
-export interface WatchConfig {
-  name: keyof GameStateShape;
-  point: [number, number];
-  target: [number, number, number];
-  tolerance?: number;
-  conditions?: {
-    name: keyof GameStateShape;
-    value: boolean;
-  }[];
+interface WatcherThread {
+  worker: Worker;
+  config: GameWatchConfig;
 }
 
-const watchers: WatchConfig[] = [
-  {
-    name: "is_on_ground",
-    point: [942, 1003],
-    target: [255, 225, 148],
-  },
-  {
-    name: "is_shift_lock",
-    point: [1807, 969],
-    target: [47, 85, 104],
-    tolerance: 10,
-  },
-  {
-    name: "is_skill_ready",
-    point: [1029, 903],
-    target: [255, 255, 255],
-  },
-];
-
+const watcherThreads: Map<string, WatcherThread> = new Map();
 let isActive = false;
-let watcherAbortController: AbortController | null = null;
 
-function checkConditions(conditions?: WatchConfig["conditions"]): boolean {
-  if (!conditions) return true;
-  for (const c of conditions) {
-    const cValue = gameStates.get(c.name);
-    if (cValue !== c.value) return false;
+const isCompiled =
+  !path.basename(process.execPath).toLowerCase().startsWith("bun") ||
+  import.meta.dir.includes("/dist") ||
+  import.meta.dir.includes("\\dist");
+
+const workerExt = isCompiled ? ".js" : ".ts";
+const workerDir = import.meta.dir.replace(/\\/g, "/");
+
+const WATCHER_THREAD_PATH = `${workerDir}/threads/game${workerExt}`;
+
+function startWatcher(config: GameWatchConfig) {
+  if (watcherThreads.has(config.name)) {
+    return;
   }
-  return true;
-}
 
-function matchesTarget(
-  rgb: RGB,
-  target: [number, number, number],
-  tolerance: number,
-): boolean {
-  const rDiff = Math.abs(rgb.r - target[0]);
-  const gDiff = Math.abs(rgb.g - target[1]);
-  const bDiff = Math.abs(rgb.b - target[2]);
-  return rDiff <= tolerance && gDiff <= tolerance && bDiff <= tolerance;
-}
+  try {
+    const worker = new Worker(WATCHER_THREAD_PATH, { type: "module" });
 
-async function runBatchedWatchers(signal: AbortSignal) {
-  const points = watchers.map((w) => w.point);
+    worker.onerror = (event: ErrorEvent) => {
+      workerLog.error(`Watcher "${config.name}" error:`, event.message);
+      stopWatcher(config.name);
+    };
 
-  while (!signal.aborted && isActive) {
-    await Bun.sleep(1);
+    worker.onmessage = ({ data }) => {
+      if (data.name && data.value !== undefined) {
+        const lastValue = gameStates.get(data.name);
+        if (lastValue !== data.value) {
+          gameStates.set(data.name, data.value);
 
-    if (signal.aborted) break;
+          self.postMessage({
+            name: data.name,
+            value: data.value,
+          });
 
-    const results = getMultiplePixelRGB(points);
-
-    for (let i = 0; i < watchers.length; i++) {
-      const config = watchers[i];
-      const rgb = results[i];
-
-      if (!rgb || !checkConditions(config.conditions)) continue;
-
-      const isMatch = matchesTarget(rgb, config.target, config.tolerance ?? 0);
-      const lastMatch = gameStates.get(config.name);
-
-      if (isMatch !== lastMatch) {
-        self.postMessage({
-          name: config.name,
-          value: isMatch,
-        });
-        gameStates.set(config.name, isMatch);
+          broadcastStateUpdate({ [data.name]: data.value });
+        }
       }
-    }
+    };
+
+    watcherThreads.set(config.name, { worker, config });
+
+    worker.postMessage({
+      type: "start",
+      config,
+    });
+  } catch (error) {
+    workerLog.error(`Failed to start watcher "${config.name}":`, error);
+  }
+}
+
+function stopWatcher(name: string) {
+  const watcher = watcherThreads.get(name);
+  if (watcher) {
+    watcher.worker.postMessage({ type: "stop" });
+    watcher.worker.terminate();
+    watcherThreads.delete(name);
+  }
+}
+
+function broadcastStateUpdate(states: Partial<GameStateShape>) {
+  for (const [_, watcher] of watcherThreads) {
+    watcher.worker.postMessage({
+      type: "state_update",
+      states,
+    });
   }
 }
 
 function startAllWatchers() {
   stopAllWatchers();
-  watcherAbortController = new AbortController();
 
-  runBatchedWatchers(watcherAbortController.signal).catch((err) => {
-    if (err.name !== "AbortError") {
-      workerLog.error("Batched watcher failed:", err);
-    }
-  });
+  for (const config of GAME_WATCHER_CONFIGS) {
+    startWatcher(config);
+  }
 }
 
 function stopAllWatchers() {
-  if (watcherAbortController) {
-    watcherAbortController.abort();
-    watcherAbortController = null;
+  for (const [name] of watcherThreads) {
+    stopWatcher(name);
   }
   gameStates.reset();
 }

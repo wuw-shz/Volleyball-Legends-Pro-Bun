@@ -1,4 +1,4 @@
-import { getForegroundWindowInfo } from "./window";
+import { window } from "winput";
 
 export interface RobloxWindowState {
   active: boolean;
@@ -6,7 +6,7 @@ export interface RobloxWindowState {
 }
 
 export function isRobloxActiveFullscreen(): RobloxWindowState {
-  const windowInfo = getForegroundWindowInfo();
+  const windowInfo = window.getActiveWindow();
   if (!windowInfo) return { active: false, fullscreen: false };
   return {
     active: windowInfo.title === "Roblox",

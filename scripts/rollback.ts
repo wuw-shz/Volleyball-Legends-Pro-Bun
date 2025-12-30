@@ -70,7 +70,7 @@ export function setupSigintHandler(): void {
   sigintHandlerRegistered = true;
 
   process.on("SIGINT", () => {
-    console.log("\n⚠️  Process terminated by user.");
+    console.log();
     setImmediate(async () => {
       try {
         await executeRollback();

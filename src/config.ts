@@ -1,8 +1,9 @@
 import path, { dirname, join } from "path";
+import { pathToFileURL } from "url";
 import { parse } from "smol-toml";
 import { LoggerClass } from "./utils";
 
-const logger = new LoggerClass(["CONFIG", "yellow"]);
+const logger = new LoggerClass(["Config", "cyan"]);
 
 export type SkillMode = "normal" | "boomjump" | "stealblock";
 
@@ -23,9 +24,6 @@ const isCompiled = !path
 const configPath = isCompiled
   ? join(dirname(process.execPath), "config.toml")
   : join(process.cwd(), "config.toml");
-
-const toFileUrl = (p: string) =>
-  `file:///${p.replace(/\\/g, "/").replace(/ /g, "%20")}`;
 
 let config: AppConfig = { ...DEFAULT_CONFIG };
 
@@ -52,10 +50,11 @@ export async function loadConfig(): Promise<AppConfig> {
       const text = await file.text();
       const parsed = parse(text) as Partial<AppConfig>;
       config = validateConfig(parsed);
-      logger.success(`Config loaded from: ${toFileUrl(configPath)}`);
+      logger.info(`Config loaded from: ${pathToFileURL(configPath).href}`);
+      logger.info(`Config: ${JSON.stringify(config)}`);
     } else {
       await saveConfig(DEFAULT_CONFIG);
-      logger.success(`Config created at: ${toFileUrl(configPath)}`);
+      logger.info(`Config created at: ${pathToFileURL(configPath).href}`);
     }
   } catch (error) {
     logger.error("Error loading config:", error);

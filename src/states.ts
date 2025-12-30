@@ -1,5 +1,6 @@
 export type GameStateShape = {
   is_on_ground: boolean;
+  is_on_air: boolean;
   is_shift_lock: boolean;
   is_skill_ready: boolean;
   is_toss: boolean;
@@ -8,6 +9,7 @@ export type GameStateShape = {
 };
 export const gameStates = createReactiveState<GameStateShape>({
   is_on_ground: false,
+  is_on_air: false,
   is_shift_lock: false,
   is_skill_ready: false,
   is_toss: false,
@@ -20,6 +22,13 @@ export type RobloxStateShape = {
 };
 export const robloxStates = createReactiveState<RobloxStateShape>({
   is_active: false,
+});
+
+export type ProgramShape = {
+  is_enabled: boolean;
+};
+export const programStates = createReactiveState<ProgramShape>({
+  is_enabled: true,
 });
 
 export interface StateChangeCallback<T> {

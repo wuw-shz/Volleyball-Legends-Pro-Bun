@@ -1,7 +1,7 @@
 import { pauseListeners, resumeListeners, LoggerClass } from "../utils";
 import { loadConfig } from "../config";
 
-const logger = new LoggerClass(["WORKER", "cyan"]);
+const logger = new LoggerClass(["Worker", "cyan"]);
 import {
   gameStates,
   robloxStates,
@@ -24,14 +24,14 @@ interface WorkerState {
   lastError: Error | null;
 }
 
-const isCompiled = !path
-  .basename(process.execPath)
-  .toLowerCase()
-  .startsWith("bun");
+const isCompiled =
+  !path.basename(process.execPath).toLowerCase().startsWith("bun") ||
+  import.meta.dir.includes("/dist") ||
+  import.meta.dir.includes("\\dist");
 
 const workerExt = isCompiled ? ".js" : ".ts";
 const workerDir = isCompiled
-  ? path.dirname(Bun.main).replace(/\\/g, "/") + "/workers"
+  ? `${import.meta.dir.replace(/\\/g, "/")}/workers`
   : import.meta.dir.replace(/\\/g, "/");
 const WORKER_PATHS = {
   roblox: `${workerDir}/roblox${workerExt}`,
@@ -163,9 +163,8 @@ export async function startWorkers(): Promise<{
       handleGameMessage(data);
     };
 
-    logger.success("Initialized successfully");
+    logger.info("Initialized successfully");
 
-    // Wait for ready messages
     const [robloxReady, gameReady] = await Promise.all([
       robloxReadyPromise,
       gameReadyPromise,

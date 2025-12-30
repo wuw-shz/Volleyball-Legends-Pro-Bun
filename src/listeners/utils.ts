@@ -3,11 +3,14 @@ import { getLock } from "./lock";
 export async function waitFor(
   condition: () => boolean,
   abort?: () => boolean,
-): Promise<void> {
+): Promise<boolean> {
   while (!condition()) {
-    if (abort?.()) break;
+    if (abort?.()) {
+      return false;
+    }
     await Bun.sleep(1);
   }
+  return true;
 }
 
 export async function withLock<T>(

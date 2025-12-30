@@ -2,20 +2,19 @@ import packageJson from "../package.json" with { type: "json" };
 process.stdout.write(`\x1b]0;VBL Pro v${packageJson.version}\x07`);
 
 import "./global";
-import { runUpdateCheck } from "./utils/updater";
+import { LoggerClass } from "./utils";
 
-await runUpdateCheck();
+const logger = new LoggerClass(["Main", "cyan"]);
 
 await import("./config");
 await import("./listeners");
-const { releaseDesktopDC } = await import("./utils");
+await import("./overlay");
 
 let terminateWorkers: (() => void) | undefined = undefined;
 
 function shutdown(signal: string) {
   logger.info(`Received ${signal}, shutting down...`);
   terminateWorkers?.();
-  releaseDesktopDC();
   process.exit(0);
 }
 
