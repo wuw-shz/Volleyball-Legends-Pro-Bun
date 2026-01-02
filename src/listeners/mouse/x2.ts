@@ -1,11 +1,12 @@
 import { mouse, keyboard } from "winput";
-import { gameStates, robloxStates } from "../../states";
+import { gameStates, programStates, robloxStates } from "../../states";
 import { createHandler } from "../types";
 import { waitFor, withLock } from "../utils";
 import { getConfig } from "../../config";
 
 function shouldAbort(): boolean {
   return (
+    !programStates.get("is_enabled") ||
     !robloxStates.get("is_active") ||
     gameStates.get("is_toss") ||
     (gameStates.get("is_on_ground") && !mouse.isPressed("x2"))
@@ -21,6 +22,7 @@ export default createHandler("x2", {
         await Bun.sleep(1);
 
         if (
+          !programStates.get("is_enabled") ||
           !robloxStates.get("is_active") ||
           gameStates.get("is_toss") ||
           mouse.isPressed("x1")

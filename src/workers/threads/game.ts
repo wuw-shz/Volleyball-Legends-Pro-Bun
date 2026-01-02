@@ -2,6 +2,11 @@ declare var self: Worker;
 import "../../global";
 import { screen, type RGB } from "winput";
 import type { GameStateShape } from "../../states";
+import {
+  createStateAccessor,
+  type StateAccessor,
+  type StateKey,
+} from "../shared-state";
 
 export interface WatcherThreadConfig {
   name: keyof GameStateShape;
@@ -15,6 +20,11 @@ export interface WatcherThreadConfig {
   }[];
 }
 
+interface InitMessage {
+  type: "init";
+  sharedBuffer: SharedArrayBuffer;
+}
+
 interface StartMessage {
   type: "start";
   config: WatcherThreadConfig;
@@ -24,16 +34,11 @@ interface StopMessage {
   type: "stop";
 }
 
-interface StateUpdateMessage {
-  type: "state_update";
-  states: Partial<GameStateShape>;
-}
-
-type WatcherMessage = StartMessage | StopMessage | StateUpdateMessage;
+type WatcherMessage = InitMessage | StartMessage | StopMessage;
 
 let abortController: AbortController | null = null;
 let currentConfig: WatcherThreadConfig | null = null;
-let cachedStates: Partial<GameStateShape> = {};
+let sharedStateAccessor: StateAccessor | undefined;
 
 function matchesTarget(
   rgb: RGB,
@@ -49,15 +54,19 @@ function matchesTarget(
 function checkConditions(
   conditions?: WatcherThreadConfig["conditions"],
 ): boolean {
-  if (!conditions) return true;
+  if (!conditions || !sharedStateAccessor) return true;
   for (const c of conditions) {
-    const cValue = cachedStates[c.name];
+    const cValue = sharedStateAccessor.get(c.name as StateKey);
     if (cValue !== c.value) return false;
   }
   return true;
 }
 
 async function runWatcher(config: WatcherThreadConfig, signal: AbortSignal) {
+  if (!sharedStateAccessor) {
+    throw new Error("SharedStateAccessor not initialized");
+  }
+
   const [x, y] = config.point;
   let lastMatch: boolean | undefined = undefined;
 
@@ -75,13 +84,15 @@ async function runWatcher(config: WatcherThreadConfig, signal: AbortSignal) {
     const isMatch = matchesTarget(rgb, config.target, config.tolerance);
 
     if (isMatch !== lastMatch) {
-      self.postMessage({
-        name: config.name,
-        value: isMatch,
-      });
+      // Write directly to SharedArrayBuffer instead of postMessage
+      sharedStateAccessor.set(config.name as StateKey, isMatch);
       lastMatch = isMatch;
     }
   }
+}
+
+function handleInit(sharedBuffer: SharedArrayBuffer) {
+  sharedStateAccessor = createStateAccessor(sharedBuffer);
 }
 
 function handleStart(config: WatcherThreadConfig) {
@@ -105,23 +116,18 @@ function handleStop() {
     abortController = null;
   }
   currentConfig = null;
-  cachedStates = {};
-}
-
-function handleStateUpdate(states: Partial<GameStateShape>) {
-  cachedStates = { ...cachedStates, ...states };
 }
 
 self.onmessage = ({ data }: MessageEvent<WatcherMessage>) => {
   switch (data.type) {
+    case "init":
+      handleInit(data.sharedBuffer);
+      break;
     case "start":
       handleStart(data.config);
       break;
     case "stop":
       handleStop();
-      break;
-    case "state_update":
-      handleStateUpdate(data.states);
       break;
   }
 };

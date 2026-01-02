@@ -1,6 +1,5 @@
 import path, { dirname, join } from "path";
 import { pathToFileURL } from "url";
-import { parse } from "smol-toml";
 import { LoggerClass } from "./utils";
 
 const logger = new LoggerClass(["Config", "cyan"]);
@@ -35,7 +34,9 @@ function validateConfig(raw: Partial<AppConfig>): AppConfig {
 
   if (!VALID_SKILL_MODES.includes(merged.skill_mode)) {
     logger.error(
-      `Invalid skill_mode: "${merged.skill_mode}". Valid values: ${VALID_SKILL_MODES.join(", ")}`,
+      `Invalid skill_mode: "${
+        merged.skill_mode
+      }". Valid values: ${VALID_SKILL_MODES.join(", ")}`,
     );
     process.exit(1);
   }
@@ -48,6 +49,7 @@ export async function loadConfig(): Promise<AppConfig> {
     const file = Bun.file(configPath);
     if (await file.exists()) {
       const text = await file.text();
+      const { parse } = await import("smol-toml");
       const parsed = parse(text) as Partial<AppConfig>;
       config = validateConfig(parsed);
       logger.info(`Config loaded from: ${pathToFileURL(configPath).href}`);
@@ -83,5 +85,3 @@ export async function saveConfig(newConfig: Partial<AppConfig>): Promise<void> {
     logger.error("Error saving config:", error);
   }
 }
-
-loadConfig();

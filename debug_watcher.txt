@@ -1,0 +1,96 @@
+/**
+ * Watch SharedArrayBuffer for state changes using Atomics.waitAsync.
+ * Updates reactive state objects when changes are detected.
+ */
+function startStateWatcher(buffer: SharedArrayBuffer): void {
+  if (stateWatcherAbort) {
+    stateWatcherAbort.abort();
+  }
+
+  stateWatcherAbort = new AbortController();
+  const accessor = createStateAccessor(buffer);
+  const signal = stateWatcherAbort.signal;
+  
+  const allKeys: StateKey[] = [
+    "is_active",
+    "is_on_ground",
+    "is_on_air",
+    "is_shift_lock",
+    "is_skill_ready",
+    "is_toss",
+    "is_bar_arrow",
+    "skill_toggle",
+  ];
+  
+  const prevStates = new Map<StateKey, boolean>();
+  for (const key of allKeys) {
+    prevStates.set(key, accessor.get(key));
+  }
+
+  logger.info("State watcher starting...");
+
+  async function watchLoop(): Promise<void> {
+    let iterationCount = 0;
+    while (!signal.aborted) {
+      iterationCount++;
+      
+     // Wait for any state change with 1 second timeout
+      try {
+        const result = await accessor.waitAsync(1000);
+        if (iterationCount === 1) {
+          logger.info(`First wait completed with result: ${result}`);
+        }
+      } catch (err) {
+        logger.error("waitAsync failed:", err);
+        // Fallback to polling every 10ms
+        await Bun.sleep(10);
+      }
+      
+      if (signal.aborted) break;
+      
+      // Check all states for changes
+      let hasChanges = false;
+      for (const key of allKeys) {
+        const current = accessor.get(key);
+        const prev = prevStates.get(key);
+
+        if (current !== prev) {
+          hasChanges = true;
+          logger.info(`[Main] State change: ${key} = ${current} (was ${prev})`);
+          prevStates.set(key, current);
+
+          if (key === "is_active") {
+            robloxStates.set(key, current);
+            
+            if (current) {
+              const { loadConfig } = await import("../config");
+              await loadConfig();
+              resumeListeners();
+            } else {
+              pauseListeners();
+            }
+          } else {
+            gameStates.set(key, current);
+          }
+        }
+      }
+      
+      // Log metrics periodically
+      if (iterationCount % 100 === 0) {
+        const metrics = accessor.getMetrics();
+        logger.info(
+          `Metrics: ${metrics.totalReads} reads, ` +
+          `${metrics.totalWrites} writes, ` +
+          `${(metrics.hitRate * 100).toFixed(1)}% cache hit rate, ` +
+          `${metrics.notificationsSent} notifications`
+        );
+      }
+    }
+  }
+
+  watchLoop().catch((err) => {
+    if (!signal.aborted) {
+      logger.error("State watcher failed:", err);
+    }
+  });
+}

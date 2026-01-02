@@ -1,5 +1,9 @@
-import { pauseListeners, resumeListeners, LoggerClass } from "../utils";
-import { loadConfig } from "../config";
+﻿import { pauseListeners, resumeListeners, LoggerClass } from "../utils";
+import {
+  createSharedStateBuffer,
+  createStateAccessor,
+  type StateKey,
+} from "./shared-state";
 
 const logger = new LoggerClass(["Worker", "cyan"]);
 import {
@@ -9,14 +13,6 @@ import {
   type RobloxStateShape,
 } from "../states";
 import path from "path";
-
-interface WorkerMessage<T> {
-  name: keyof T;
-  value: T[keyof T];
-}
-
-type RobloxWorkerMessage = WorkerMessage<RobloxStateShape>;
-type GameWorkerMessage = WorkerMessage<GameStateShape>;
 
 interface WorkerState {
   isReady: boolean;
@@ -83,7 +79,7 @@ async function createWorker(
 
   const worker = new Worker(filePath, options);
 
-  worker.onerror = (event: ErrorEvent) => {
+  worker.onerror = (event: ErrorEvent): void => {
     const error = new Error(`Worker "${name}" error: ${event.message}`);
     setWorkerError(name, error);
     logger.error(`[${name}] Error:`, event.message);
@@ -94,30 +90,10 @@ async function createWorker(
   return worker;
 }
 
-function handleRobloxMessage(data: RobloxWorkerMessage): void {
-  const stateObj = robloxStates.toObject();
-  if (data.name in stateObj) {
-    robloxStates.set(data.name, data.value as boolean);
-    if (data.name === "is_active") {
-      if (data.value) {
-        loadConfig();
-        resumeListeners();
-      } else {
-        pauseListeners();
-      }
-    }
-  }
-}
-
-function handleGameMessage(data: GameWorkerMessage): void {
-  const stateObj = gameStates.toObject();
-  if (data.name in stateObj) {
-    gameStates.set(data.name, data.value as boolean);
-  }
-}
-
 export let robloxDetection: Worker;
 export let gameDetection: Worker;
+
+let stateWatcherAbort: AbortController | undefined;
 
 export async function startWorkers(): Promise<{
   robloxReady: boolean;
@@ -129,39 +105,37 @@ export async function startWorkers(): Promise<{
       createWorker("game", WORKER_PATHS.game, { type: "module" }),
     ]);
 
-    const robloxReadyPromise = new Promise<boolean>((res) => {
+    const robloxReadyPromise = new Promise<boolean>((resolve) => {
       robloxDetection.addEventListener(
         "message",
-        (ev) => {
-          if (ev.data.ready !== undefined) res(ev.data.ready);
+        (ev: MessageEvent<{ ready?: boolean }>) => {
+          if (ev.data.ready !== undefined) {
+            resolve(ev.data.ready);
+          }
         },
         { once: true },
       );
     });
 
-    const gameReadyPromise = new Promise<boolean>((res) => {
+    const gameReadyPromise = new Promise<boolean>((resolve) => {
       gameDetection.addEventListener(
         "message",
-        (ev) => {
-          if (ev.data.ready !== undefined) res(ev.data.ready);
+        (ev: MessageEvent<{ ready?: boolean }>) => {
+          if (ev.data.ready !== undefined) {
+            resolve(ev.data.ready);
+          }
         },
         { once: true },
       );
     });
 
-    const { port1, port2 } = new MessageChannel();
-    robloxDetection.postMessage(port1, [port1]);
-    gameDetection.postMessage(port2, [port2]);
+    const sharedBuffer = createSharedStateBuffer();
 
-    robloxDetection.onmessage = ({
-      data,
-    }: MessageEvent<RobloxWorkerMessage>) => {
-      handleRobloxMessage(data);
-    };
+    // Send only sharedBuffer to workers (no MessageChannel)
+    robloxDetection.postMessage({ type: "init", sharedBuffer });
+    gameDetection.postMessage({ type: "init", sharedBuffer });
 
-    gameDetection.onmessage = ({ data }: MessageEvent<GameWorkerMessage>) => {
-      handleGameMessage(data);
-    };
+    startStateWatcher(sharedBuffer);
 
     logger.info("Initialized successfully");
 
@@ -171,14 +145,108 @@ export async function startWorkers(): Promise<{
     ]);
 
     return { robloxReady, gameReady };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Failed to initialize:", error);
     throw error;
   }
 }
 
+/**
+ * Watch SharedArrayBuffer for state changes using Atomics.waitAsync.
+ * Updates reactive state objects when changes are detected.
+ */
+function startStateWatcher(buffer: SharedArrayBuffer): void {
+  if (stateWatcherAbort) {
+    stateWatcherAbort.abort();
+  }
+
+  stateWatcherAbort = new AbortController();
+  const accessor = createStateAccessor(buffer);
+  const signal = stateWatcherAbort.signal;
+
+  const allKeys: StateKey[] = [
+    "is_active",
+    "is_on_ground",
+    "is_on_air",
+    "is_shift_lock",
+    "is_skill_ready",
+    "is_toss",
+    "is_bar_arrow",
+    "skill_toggle",
+  ];
+
+  const prevStates = new Map<StateKey, boolean>();
+  for (const key of allKeys) {
+    prevStates.set(key, accessor.get(key));
+  }
+
+  async function watchLoop(): Promise<void> {
+    let iterationCount = 0;
+    while (!signal.aborted) {
+      iterationCount++;
+
+      // Wait for any state change with 1 second timeout
+      try {
+        await accessor.waitAsync(1000);
+      } catch (err) {
+        logger.error("waitAsync failed:", err);
+        // Fallback to polling every 10ms
+        await Bun.sleep(10);
+      }
+
+      if (signal.aborted) break;
+
+      // Check all states for changes
+      let hasChanges = false;
+      for (const key of allKeys) {
+        const current = accessor.get(key);
+        const prev = prevStates.get(key);
+
+        if (current !== prev) {
+          prevStates.set(key, current);
+
+          if (key === "is_active") {
+            robloxStates.set(key, current);
+
+            if (current) {
+              const { loadConfig } = await import("../config");
+              await loadConfig();
+              resumeListeners();
+            } else {
+              pauseListeners();
+            }
+          } else {
+            gameStates.set(key, current);
+          }
+        }
+      }
+
+      // Log metrics periodically
+      // if (iterationCount % 100 === 0) {
+      //   const metrics = accessor.getMetrics();
+      //   logger.info(
+      //     `Metrics: ${metrics.totalReads} reads, ` +
+      //     `${metrics.totalWrites} writes, ` +
+      //     `${(metrics.hitRate * 100).toFixed(1)}% cache hit rate, ` +
+      //     `${metrics.notificationsSent} notifications`
+      //   );
+      // }
+    }
+  }
+
+  watchLoop().catch((err) => {
+    if (!signal.aborted) {
+      logger.error("State watcher failed:", err);
+    }
+  });
+}
 export function terminateWorkers(): void {
   try {
+    if (stateWatcherAbort) {
+      stateWatcherAbort.abort();
+      stateWatcherAbort = undefined;
+    }
+
     if (robloxDetection) {
       robloxDetection.terminate();
       logger.info("[roblox] Terminated");
@@ -188,7 +256,7 @@ export function terminateWorkers(): void {
       logger.info("[game] Terminated");
     }
     workerStates.clear();
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Error during termination:", error);
   }
 }
