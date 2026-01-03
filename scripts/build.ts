@@ -5,8 +5,6 @@ export const buildConfig: BuildConfig = {
     "./src/index.ts",
     "./src/workers/roblox.ts",
     "./src/workers/game.ts",
-    "./src/workers/threads/game.ts",
-    "./src/workers/threads/roblox.ts",
   ],
   minify: true,
   splitting: true,
