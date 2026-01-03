@@ -12,16 +12,8 @@ export async function runZipAndRelease(): Promise<boolean> {
   console.log("Creating ZIP archive...");
 
   const version = packageJson.version;
-  const cwd = process.cwd();
-  const exePath = `${cwd}/build/vbl-pro-bun-v${version}.exe`;
-  const zipPath = `${cwd}/build/vbl-pro-bun-v${version}.zip`;
-
-  const exeFile = Bun.file(exePath);
-  if (!(await exeFile.exists())) {
-    console.error(`Exe file not found: ${exePath}`);
-    console.timeEnd("zip");
-    return false;
-  }
+  const exePath = `build/vbl-pro-bun-v${version}.exe`;
+  const zipPath = `build/vbl-pro-bun-v${version}.zip`;
 
   registerRollback("zip", async () => {
     const zipFile = Bun.file(zipPath);
@@ -36,33 +28,18 @@ export async function runZipAndRelease(): Promise<boolean> {
       .quiet()
       .nothrow();
 
-  if (zipResult.exitCode !== 0) {
+  if (zipResult.exitCode === 0) {
+    markStageComplete("zip");
+    const exeSize = (await Bun.file(exePath).size) / 1024 / 1024;
+    const zipSize = (await Bun.file(zipPath).size) / 1024 / 1024;
+    console.log(
+      `ZIP Created: ${exeSize.toFixed(1)}MB -> ${zipSize.toFixed(1)}MB (${((1 - zipSize / exeSize) * 100).toFixed(0)}% reduction)`,
+    );
+  } else {
     console.warn("ZIP Creation Failed:", zipResult.stderr.toString());
     console.timeEnd("zip");
     return false;
   }
-
-  const zipFile = Bun.file(zipPath);
-  if (!(await zipFile.exists())) {
-    console.error(`ZIP file was not created: ${zipPath}`);
-    console.timeEnd("zip");
-    return false;
-  }
-
-  const zipSize = zipFile.size / 1024 / 1024;
-  if (zipSize < 1) {
-    console.error(
-      `ZIP file is too small (${zipSize.toFixed(2)}MB), likely empty or corrupt`,
-    );
-    console.timeEnd("zip");
-    return false;
-  }
-
-  markStageComplete("zip");
-  const exeSize = exeFile.size / 1024 / 1024;
-  console.log(
-    `ZIP Created: ${exeSize.toFixed(1)}MB -> ${zipSize.toFixed(1)}MB (${((1 - zipSize / exeSize) * 100).toFixed(0)}% reduction)`,
-  );
 
   console.timeEnd("zip");
   console.log();
