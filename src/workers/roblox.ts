@@ -1,114 +1,71 @@
 declare var self: Worker;
 import "../global";
 import { robloxStates, type RobloxStateShape } from "../states";
-import { ROBLOX_WATCHER_CONFIGS, type RobloxWatchConfig } from "./config";
+import { ROBLOX_WATCHER_CONFIGS } from "./config";
 import {
   createStateAccessor,
   type StateAccessor,
   type StateKey,
 } from "./shared-state";
-import path from "path";
+import { isRobloxActiveFullscreen } from "../utils";
 
 const workerLog = new Logger(["Worker", "cyan"], ["Roblox", "gray"]);
 
 let sharedStateAccessor: StateAccessor | undefined;
+let abortController: AbortController | null = null;
+let lastActive: boolean | undefined = undefined;
 
-interface WatcherThread {
-  worker: Worker;
-  config: RobloxWatchConfig;
-}
+async function runWatcher(
+  signal: AbortSignal,
+  pollRate: number,
+): Promise<void> {
+  while (!signal.aborted) {
+    await Bun.sleep(pollRate);
 
-const watcherThreads: Map<string, WatcherThread> = new Map();
+    if (signal.aborted) break;
 
-const isCompiled =
-  !path.basename(process.execPath).toLowerCase().startsWith("bun") ||
-  import.meta.dir.includes("/dist") ||
-  import.meta.dir.includes("\\dist");
+    const { active: isActive, fullscreen } = isRobloxActiveFullscreen();
+    const isNowActive = isActive && fullscreen;
 
-const workerExt = isCompiled ? ".js" : ".ts";
-const workerDir = import.meta.dir.replace(/\\/g, "/");
+    if (isNowActive !== lastActive) {
+      robloxStates.set("is_active", isNowActive);
 
-const WATCHER_THREAD_PATH = `${workerDir}/threads/roblox${workerExt}`;
-
-function startWatcher(config: RobloxWatchConfig): void {
-  if (watcherThreads.has(config.name)) {
-    return;
-  }
-
-  try {
-    const worker = new Worker(WATCHER_THREAD_PATH, { type: "module" });
-
-    worker.onerror = (event: ErrorEvent): void => {
-      workerLog.error(`Watcher "${config.name}" error:`, event.message);
-      stopWatcher(config.name);
-    };
-
-    worker.onmessage = ({
-      data,
-    }: MessageEvent<{ name?: string; value?: boolean }>): void => {
-      if (!data.name || data.value === undefined) {
-        return;
+      if (sharedStateAccessor) {
+        sharedStateAccessor.set("is_active" as StateKey, isNowActive);
       }
 
-      if (!(data.name in robloxStates.toObject())) {
-        return;
-      }
-
-      const stateName = data.name as keyof RobloxStateShape;
-      const lastValue = robloxStates.get(stateName);
-
-      if (lastValue !== data.value) {
-        robloxStates.set(stateName, data.value);
-
-        if (sharedStateAccessor) {
-          sharedStateAccessor.set(stateName as StateKey, data.value);
-        }
-
-        if (stateName === "is_active") {
-          workerLog.info(`${data.value ? "active" : "inactive"}`);
-        }
-      }
-    };
-
-    watcherThreads.set(config.name, { worker, config });
-
-    worker.postMessage({
-      type: "start",
-      pollRate: config.pollRate,
-    });
-  } catch (error: unknown) {
-    workerLog.error(`Failed to start watcher "${config.name}":`, error);
+      workerLog.info(`${isNowActive ? "active" : "inactive"}`);
+      lastActive = isNowActive;
+    }
   }
 }
 
-function stopWatcher(name: string): void {
-  const watcher = watcherThreads.get(name);
-  if (!watcher) {
-    return;
+function startWatcher(): void {
+  if (abortController) {
+    abortController.abort();
   }
 
-  watcher.worker.postMessage({ type: "stop" });
-  watcher.worker.terminate();
-  watcherThreads.delete(name);
+  const config = ROBLOX_WATCHER_CONFIGS[0];
+  abortController = new AbortController();
+
+  runWatcher(abortController.signal, config.pollRate).catch((err) => {
+    if (err.name !== "AbortError") {
+      workerLog.error("Roblox watcher failed:", err);
+    }
+  });
 }
 
-function startAllWatchers(): void {
-  stopAllWatchers();
-
-  for (const config of ROBLOX_WATCHER_CONFIGS) {
-    startWatcher(config);
+function stopWatcher(): void {
+  if (abortController) {
+    abortController.abort();
+    abortController = null;
   }
-}
-
-function stopAllWatchers(): void {
-  for (const [name] of watcherThreads) {
-    stopWatcher(name);
-  }
+  lastActive = undefined;
   robloxStates.reset();
 }
 
 function init(): void {
-  startAllWatchers();
+  startWatcher();
   workerLog.info("running");
   self.postMessage({ ready: true });
 }

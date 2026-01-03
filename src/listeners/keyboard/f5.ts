@@ -8,7 +8,7 @@ export default createHandler("f5", {
       const current = programStates.get("is_enabled");
       programStates.set("is_enabled", !current);
       console.log(
-        `---- Program toggle is now ${!current ? "ENABLED" : "DISABLED"} ----`,
+        `---- Aim line toggle is now ${!current ? "ENABLED" : "DISABLED"} ----`,
       );
     });
   },

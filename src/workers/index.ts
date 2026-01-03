@@ -6,12 +6,7 @@ import {
 } from "./shared-state";
 
 const logger = new LoggerClass(["Worker", "cyan"]);
-import {
-  gameStates,
-  robloxStates,
-  type GameStateShape,
-  type RobloxStateShape,
-} from "../states";
+import { gameStates, robloxStates } from "../states";
 import path from "path";
 
 interface WorkerState {
@@ -131,7 +126,6 @@ export async function startWorkers(): Promise<{
 
     const sharedBuffer = createSharedStateBuffer();
 
-    // Send only sharedBuffer to workers (no MessageChannel)
     robloxDetection.postMessage({ type: "init", sharedBuffer });
     gameDetection.postMessage({ type: "init", sharedBuffer });
 
@@ -151,10 +145,6 @@ export async function startWorkers(): Promise<{
   }
 }
 
-/**
- * Watch SharedArrayBuffer for state changes using Atomics.waitAsync.
- * Updates reactive state objects when changes are detected.
- */
 function startStateWatcher(buffer: SharedArrayBuffer): void {
   if (stateWatcherAbort) {
     stateWatcherAbort.abort();
@@ -185,18 +175,15 @@ function startStateWatcher(buffer: SharedArrayBuffer): void {
     while (!signal.aborted) {
       iterationCount++;
 
-      // Wait for any state change with 1 second timeout
       try {
         await accessor.waitAsync(1000);
       } catch (err) {
         logger.error("waitAsync failed:", err);
-        // Fallback to polling every 10ms
         await Bun.sleep(10);
       }
 
       if (signal.aborted) break;
 
-      // Check all states for changes
       let hasChanges = false;
       for (const key of allKeys) {
         const current = accessor.get(key);
@@ -221,7 +208,6 @@ function startStateWatcher(buffer: SharedArrayBuffer): void {
         }
       }
 
-      // Log metrics periodically
       // if (iterationCount % 100 === 0) {
       //   const metrics = accessor.getMetrics();
       //   logger.info(

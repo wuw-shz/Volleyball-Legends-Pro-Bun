@@ -1,116 +1,90 @@
 declare var self: Worker;
 import "../global";
-import {
-  gameStates,
-  robloxStates,
-  type GameStateShape,
-  type RobloxStateShape,
-} from "../states";
+import { screen, type RGB } from "winput";
+import { gameStates, type GameStateShape } from "../states";
 import { GAME_WATCHER_CONFIGS, type GameWatchConfig } from "./config";
 import {
   createStateAccessor,
   type StateAccessor,
   type StateKey,
 } from "./shared-state";
-import path from "path";
 
 const workerLog = new Logger(["Worker", "cyan"], ["Game", "gray"]);
 
 let sharedStateAccessor: StateAccessor | undefined;
-
-interface WatcherThread {
-  worker: Worker;
-  config: GameWatchConfig;
-}
-
-const watcherThreads: Map<string, WatcherThread> = new Map();
 let isActive = false;
-let sharedBuffer: SharedArrayBuffer | undefined;
+let abortController: AbortController | null = null;
 
-const isCompiled =
-  !path.basename(process.execPath).toLowerCase().startsWith("bun") ||
-  import.meta.dir.includes("/dist") ||
-  import.meta.dir.includes("\\dist");
+function matchesTarget(
+  rgb: RGB,
+  target: [number, number, number],
+  tolerance: number,
+): boolean {
+  const rDiff = Math.abs(rgb.r - target[0]);
+  const gDiff = Math.abs(rgb.g - target[1]);
+  const bDiff = Math.abs(rgb.b - target[2]);
+  return rDiff <= tolerance && gDiff <= tolerance && bDiff <= tolerance;
+}
 
-const workerExt = isCompiled ? ".js" : ".ts";
-const workerDir = import.meta.dir.replace(/\\/g, "/");
+function checkConditions(conditions?: GameWatchConfig["conditions"]): boolean {
+  if (!conditions || !sharedStateAccessor) return true;
+  for (const c of conditions) {
+    const cValue = sharedStateAccessor.get(c.name as StateKey);
+    if (cValue !== c.value) return false;
+  }
+  return true;
+}
 
-const WATCHER_THREAD_PATH = `${workerDir}/threads/game${workerExt}`;
-
-function startWatcher(config: GameWatchConfig): void {
-  if (watcherThreads.has(config.name)) {
-    return;
+async function runAllWatchers(signal: AbortSignal): Promise<void> {
+  if (!sharedStateAccessor) {
+    throw new Error("SharedStateAccessor not initialized");
   }
 
-  try {
-    const worker = new Worker(WATCHER_THREAD_PATH, { type: "module" });
+  const lastMatches = new Map<keyof GameStateShape, boolean | undefined>();
 
-    worker.onerror = (event: ErrorEvent): void => {
-      workerLog.error(`Watcher "${config.name}" error:`, event.message);
-      stopWatcher(config.name);
-    };
+  while (!signal.aborted) {
+    await Bun.sleep(1);
 
-    worker.onmessage = ({
-      data,
-    }: MessageEvent<{ name?: string; value?: boolean }>): void => {
-      if (!data.name || data.value === undefined) {
-        return;
+    if (signal.aborted) break;
+
+    for (const config of GAME_WATCHER_CONFIGS) {
+      if (!checkConditions(config.conditions)) continue;
+
+      const [x, y] = config.point;
+      const rgb = screen.getPixel(x, y);
+
+      if (!rgb) continue;
+
+      const tolerance = config.tolerance ?? 0;
+      const isMatch = matchesTarget(rgb, config.target, tolerance);
+      const lastMatch = lastMatches.get(config.name);
+
+      if (isMatch !== lastMatch) {
+        sharedStateAccessor.set(config.name as StateKey, isMatch);
+        lastMatches.set(config.name, isMatch);
       }
-
-      if (!(data.name in gameStates.toObject())) {
-        return;
-      }
-
-      const stateName = data.name as keyof GameStateShape;
-      const lastValue = gameStates.get(stateName);
-
-      if (lastValue !== data.value) {
-        gameStates.set(stateName, data.value);
-
-        if (sharedStateAccessor) {
-          sharedStateAccessor.set(stateName as StateKey, data.value);
-        }
-      }
-    };
-
-    watcherThreads.set(config.name, { worker, config });
-
-    // Send SharedArrayBuffer to watcher thread first
-    if (sharedBuffer) {
-      worker.postMessage({ type: "init", sharedBuffer });
     }
-
-    worker.postMessage({
-      type: "start",
-      config,
-    });
-  } catch (error: unknown) {
-    workerLog.error(`Failed to start watcher "${config.name}":`, error);
   }
 }
 
-function stopWatcher(name: string): void {
-  const watcher = watcherThreads.get(name);
-  if (!watcher) {
-    return;
+function startWatchers(): void {
+  if (abortController) {
+    abortController.abort();
   }
 
-  watcher.worker.postMessage({ type: "stop" });
-  watcher.worker.terminate();
-  watcherThreads.delete(name);
+  abortController = new AbortController();
+
+  runAllWatchers(abortController.signal).catch((err) => {
+    if (err.name !== "AbortError") {
+      workerLog.error("Game watcher failed:", err);
+    }
+  });
 }
 
-function startAllWatchers(): void {
-  stopAllWatchers();
-
-  for (const config of GAME_WATCHER_CONFIGS) {
-    startWatcher(config);
-  }
-}
-
-function stopAllWatchers(): void {
-  for (const [name] of watcherThreads) {
-    stopWatcher(name);
+function stopWatchers(): void {
+  if (abortController) {
+    abortController.abort();
+    abortController = null;
   }
   gameStates.reset();
 }
@@ -121,7 +95,6 @@ async function watchRoblox(): Promise<never> {
   }
 
   while (true) {
-    // Wait for is_active state change
     await sharedStateAccessor.waitAsync(100);
 
     const robloxActive = sharedStateAccessor.get("is_active");
@@ -129,10 +102,10 @@ async function watchRoblox(): Promise<never> {
       isActive = robloxActive;
       if (isActive) {
         workerLog.info("started");
-        startAllWatchers();
+        startWatchers();
       } else {
         workerLog.info("stopped");
-        stopAllWatchers();
+        stopWatchers();
       }
     }
   }
@@ -162,7 +135,6 @@ function isInitMessage(data: unknown): data is InitMessage {
 
 self.onmessage = ({ data }: MessageEvent<unknown>): void => {
   if (isInitMessage(data)) {
-    sharedBuffer = data.sharedBuffer;
     sharedStateAccessor = createStateAccessor(data.sharedBuffer);
     init();
   }

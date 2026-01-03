@@ -46,7 +46,7 @@ export default createHandler("x2", {
           } else {
             keyboard.tap("space");
           }
-          await waitFor(() => !gameStates.get("is_on_ground"), shouldAbort);
+          await waitFor(() => gameStates.get("is_on_air"), shouldAbort);
 
           if (!isShift) {
             keyboard.release("shift");
@@ -60,7 +60,7 @@ export default createHandler("x2", {
     await withLock("x2", async () => {
       if (gameStates.get("is_toss")) return;
       if (!mouse.isPressed("x1")) {
-        await waitFor(() => !gameStates.get("is_on_ground"), shouldAbort);
+        await waitFor(() => gameStates.get("is_on_air"), shouldAbort);
         if (
           getConfig().skill_mode == "normal" &&
           gameStates.get("skill_toggle") &&
