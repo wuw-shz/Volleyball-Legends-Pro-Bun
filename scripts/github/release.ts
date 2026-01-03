@@ -24,8 +24,9 @@ export async function handleRelease(): Promise<boolean> {
   });
 
   console.log(`Creating release "${tagName}" ...`);
+  const zipPath = `build/vbl-pro-bun-v${version}.zip`;
   const result =
-    await $`gh release create ${tagName} build/vbl-pro-bun-v${version}.zip --generate-notes`;
+    await $`gh release create ${tagName} ${zipPath} --generate-notes`;
 
   if (result.exitCode !== 0) {
     console.error("Release Failed:");

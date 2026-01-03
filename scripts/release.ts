@@ -24,7 +24,7 @@ export async function runZipAndRelease(): Promise<boolean> {
   });
 
   const zipResult =
-    await $`powershell Compress-Archive -Path ${exePath} -DestinationPath ${zipPath} -Force`
+    await $`powershell Compress-Archive -Path '${exePath}' -DestinationPath '${zipPath}' -Force`
       .quiet()
       .nothrow();
 
