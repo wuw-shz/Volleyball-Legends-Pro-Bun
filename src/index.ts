@@ -4,8 +4,11 @@ import packageJson from "../package.json" with { type: "json" };
 process.stdout.write(`\x1b]0;VBL Pro v${packageJson.version}\x07`);
 
 import "./global";
+import { loadConfig } from "./config";
 import { LoggerClass } from "./utils";
 import { robloxStates } from "./states";
+
+loadConfig();
 
 const logger = new LoggerClass(["Main", "cyan"]);
 
