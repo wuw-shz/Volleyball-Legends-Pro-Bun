@@ -1,4 +1,4 @@
-import { window } from "winput";
+import { window } from "@winput/window";
 
 export interface RobloxWindowState {
   active: boolean;

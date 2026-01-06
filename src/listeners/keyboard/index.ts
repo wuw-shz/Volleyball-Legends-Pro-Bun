@@ -1,7 +1,4 @@
-import type { Handler } from "../types";
-import f1 from "./f1";
-import f4 from "./f4";
-import f5 from "./f5";
-import q from "./q";
+import { createInputListener } from "../factory";
+import { keyboardHandlers } from "./handlers";
 
-export const keyboardHandlers: Handler[] = [f1, f4, f5, q];
+createInputListener("keyboard", keyboardHandlers);

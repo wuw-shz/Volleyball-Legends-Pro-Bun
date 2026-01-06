@@ -1,8 +1,8 @@
 import path, { dirname, join } from "path";
 import { pathToFileURL } from "url";
-import { LoggerClass } from "./utils";
+import { Logger } from "@utils";
 
-const logger = new LoggerClass(["Config", "cyan"]);
+const logger = new Logger(["Config", "cyan"]);
 
 export type SkillMode = "normal" | "boomjump" | "stealblock";
 

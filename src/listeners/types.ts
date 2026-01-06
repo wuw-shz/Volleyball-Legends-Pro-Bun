@@ -7,11 +7,5 @@ export interface Handler {
     up?: HandlerAction;
   };
 }
-export type InputType = "keyboard" | "mouse";
 
-export function createHandler(
-  name: string,
-  actions: { down?: HandlerAction; up?: HandlerAction },
-): Handler {
-  return { name, on: actions };
-}
+export type InputType = "keyboard" | "mouse";

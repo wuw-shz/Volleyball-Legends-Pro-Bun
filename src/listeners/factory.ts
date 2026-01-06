@@ -1,9 +1,10 @@
-import { keyboard, mouse } from "winput";
-import { robloxStates } from "../states";
-import { LoggerClass } from "../utils";
+import { mouse } from "@winput/mouse";
+import { keyboard } from "@winput/keyboard";
+import { robloxStates } from "@states";
+import { Logger } from "@utils";
 import type { Handler, InputType } from "./types";
 
-const logger = new LoggerClass(["Listener", "cyan"]);
+const logger = new Logger(["Listener", "cyan"]);
 
 export function createInputListener(
   inputType: InputType,

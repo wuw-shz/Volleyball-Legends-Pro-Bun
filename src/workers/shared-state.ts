@@ -3,7 +3,7 @@ import {
   type RobloxStateShape,
   gameStates,
   robloxStates,
-} from "../states";
+} from "@states";
 
 type AllStateKeys = keyof RobloxStateShape | keyof GameStateShape;
 

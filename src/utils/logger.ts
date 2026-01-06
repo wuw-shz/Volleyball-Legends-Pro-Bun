@@ -30,7 +30,7 @@ const COLORS = {
 
 type ColorKey = keyof typeof COLORS;
 
-export class LoggerClass {
+export class Logger {
   private config: LoggerConfig = {
     level: LogLevel.INFO,
     timestamps: true,
@@ -57,7 +57,7 @@ export class LoggerClass {
   }
 
   scoped(...inputs: TagInput[]) {
-    const next = new LoggerClass(
+    const next = new Logger(
       ...this.tags.map((t) => [t.name, t.color] as [string, ColorKey]),
       ...inputs,
     );

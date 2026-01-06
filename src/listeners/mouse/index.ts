@@ -1,5 +1,4 @@
-import type { Handler } from "../types";
-import x1 from "./x1";
-import x2 from "./x2";
+import { createInputListener } from "../factory";
+import { mouseHandlers } from "./handlers";
 
-export const mouseHandlers: Handler[] = [x1, x2];
+createInputListener("mouse", mouseHandlers);

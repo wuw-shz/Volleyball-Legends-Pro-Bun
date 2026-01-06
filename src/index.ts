@@ -3,14 +3,13 @@ const startTime = Date.now();
 import packageJson from "../package.json" with { type: "json" };
 process.stdout.write(`\x1b]0;VBL Pro v${packageJson.version}\x07`);
 
-import "./global";
-import { loadConfig } from "./config";
-import { LoggerClass } from "./utils";
-import { robloxStates } from "./states";
+import { loadConfig } from "@config";
+import { Logger } from "@utils";
+import { robloxStates } from "@states";
 
 loadConfig();
 
-const logger = new LoggerClass(["Main", "cyan"]);
+const logger = new Logger(["Main", "cyan"]);
 
 let terminateWorkers: (() => void) | undefined;
 let listenersInitialized = false;

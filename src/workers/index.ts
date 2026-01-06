@@ -1,14 +1,14 @@
-﻿import { pauseListeners, resumeListeners, LoggerClass } from "../utils";
+﻿import { pauseListeners, resumeListeners, Logger } from "@utils";
 import {
   createSharedStateBuffer,
   createStateAccessor,
   STATE_KEYS,
   type StateKey,
 } from "./shared-state";
-import { gameStates, robloxStates, type GameStateShape } from "../states";
+import { gameStates, robloxStates, type GameStateShape } from "@states";
 import path from "path";
 
-const logger = new LoggerClass(["Worker", "cyan"]);
+const logger = new Logger(["Worker", "cyan"]);
 
 interface WorkerState {
   isReady: boolean;

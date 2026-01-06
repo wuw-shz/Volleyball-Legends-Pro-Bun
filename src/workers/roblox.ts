@@ -1,9 +1,9 @@
 declare var self: Worker;
-import "../global";
-import { robloxStates } from "../states";
+import { Logger } from "@utils";
+import { robloxStates } from "@states";
 import { ROBLOX_WATCHER_CONFIGS } from "./config";
 import { createStateAccessor, type StateAccessor } from "./shared-state";
-import { isRobloxActiveFullscreen } from "../utils";
+import { isRobloxActiveFullscreen } from "@utils";
 
 const workerLog = new Logger(["Worker", "cyan"], ["Roblox", "gray"]);
 

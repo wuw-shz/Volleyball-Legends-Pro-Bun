@@ -5,11 +5,14 @@
   "type": "module",
   "devDependencies": {
     "@types/bun": "latest",
-    "winput": "^4.1.0",
-    "smol-toml": "^1.6.0"
+    "@winput/screen": "latest",
+    "@winput/keyboard": "latest",
+    "@winput/mouse": "latest",
+    "@winput/overlay": "latest",
+    "smol-toml": "latest"
   },
   "peerDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "latest"
   },
   "private": true,
   "scripts": {

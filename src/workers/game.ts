@@ -1,7 +1,7 @@
 declare var self: Worker;
-import "../global";
-import { screen, type RGB } from "winput";
-import { gameStates, type GameStateShape } from "../states";
+import { Logger } from "@utils";
+import { screen } from "@winput/screen";
+import { gameStates } from "@states";
 import { GAME_WATCHER_CONFIGS, type GameWatchConfig } from "./config";
 import {
   createStateAccessor,

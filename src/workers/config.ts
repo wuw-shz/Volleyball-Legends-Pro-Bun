@@ -1,4 +1,4 @@
-import type { GameStateShape, RobloxStateShape } from "../states";
+import type { GameStateShape, RobloxStateShape } from "@states";
 
 export interface GameWatchConfig {
   name: keyof GameStateShape;

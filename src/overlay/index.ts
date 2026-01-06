@@ -1,8 +1,9 @@
-import { overlay, screen } from "winput";
-import { robloxStates, programStates } from "../states";
-import { LoggerClass } from "../utils/logger";
+import { overlay } from "@winput/overlay";
+import { screen } from "@winput/screen";
+import { robloxStates, programStates } from "@states";
+import { Logger } from "@utils";
 
-const logger = new LoggerClass(["Overlay", "cyan"]);
+const logger = new Logger(["Overlay", "cyan"]);
 
 let isShowing = false;
 let intervalId: Timer | undefined;
