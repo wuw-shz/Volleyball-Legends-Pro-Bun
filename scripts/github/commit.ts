@@ -1,5 +1,11 @@
 import { registerRollback, markStageComplete } from "../rollback";
 
+let commitWasPushed = false;
+
+export function wasCommitPushed(): boolean {
+  return commitWasPushed;
+}
+
 async function run(cmd: string[]) {
   const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "pipe" });
   const stdout = await new Response(proc.stdout).text();
@@ -53,13 +59,14 @@ export async function runGitCommit(): Promise<boolean> {
   const message = `@${username} ${date} x${count}`;
 
   let committed = false;
-  let pushed = false;
+  commitWasPushed = false;
 
   registerRollback("commit", async () => {
-    if (pushed) {
-      await run(["git", "revert", "--no-commit", "HEAD"]);
-      await run(["git", "commit", "-m", `Revert: ${message}`]);
-      await run(["git", "push", "origin", "main"]);
+    if (commitWasPushed) {
+      // Skip git operations here - version rollback will create a new commit
+      console.log(
+        "Commit was pushed, version rollback will handle revert commit.",
+      );
     } else if (committed) {
       await run(["git", "reset", "--soft", "HEAD~1"]);
     }
@@ -73,7 +80,7 @@ export async function runGitCommit(): Promise<boolean> {
 
   console.time("Pushing to origin main...");
   await run(["git", "push", "origin", "main"]);
-  pushed = true;
+  commitWasPushed = true;
   console.timeEnd("Pushing to origin main...");
 
   return true;

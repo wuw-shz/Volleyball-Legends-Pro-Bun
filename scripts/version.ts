@@ -1,4 +1,5 @@
 import packageJson from "../package.json" with { type: "json" };
+import { wasCommitPushed } from "./github/commit";
 
 export type BumpType = "major" | "minor" | "patch";
 
@@ -57,6 +58,32 @@ export async function rollbackVersion(): Promise<void> {
     );
     await backupFile.delete();
     console.log(`Rolled back version to ${originalVersion}`);
+
+    if (wasCommitPushed()) {
+      await commitVersionRollback(originalVersion);
+    }
+  }
+}
+
+async function run(cmd: string[]): Promise<string> {
+  const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "pipe" });
+  const stdout = await new Response(proc.stdout).text();
+  const stderr = await new Response(proc.stderr).text();
+  await proc.exited;
+  if (proc.exitCode !== 0) {
+    throw new Error(stderr || stdout || `Command failed: ${cmd.join(" ")}`);
+  }
+  return stdout.trim();
+}
+
+async function commitVersionRollback(version: string): Promise<void> {
+  try {
+    await run(["git", "add", "package.json"]);
+    await run(["git", "commit", "-m", `Rollback version to ${version}`]);
+    await run(["git", "push", "origin", "main"]);
+    console.log("Version rollback committed and pushed.");
+  } catch (error) {
+    console.error("Failed to commit version rollback:", error);
   }
 }
 
