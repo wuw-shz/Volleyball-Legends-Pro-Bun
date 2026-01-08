@@ -29,7 +29,7 @@ function getAssetsDir(): string {
 
 const CROSSHAIR_PATH = join(getAssetsDir(), "crosshair.png");
 
-async function extractCrosshair(): Promise<string> {
+export async function extractCrosshair(): Promise<string> {
   const assetsDir = getAssetsDir();
   await mkdir(assetsDir, { recursive: true });
 

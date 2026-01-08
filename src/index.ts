@@ -7,8 +7,10 @@ import { loadConfig } from "@config";
 import { Logger } from "@utils";
 import { robloxStates } from "@states";
 import { extractDxgiDll } from "./utils/dll-extract";
+import { extractCrosshair } from "./overlay";
 
 extractDxgiDll();
+extractCrosshair();
 loadConfig();
 
 const logger = new Logger(["Main", "cyan"]);
