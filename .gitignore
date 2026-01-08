@@ -2,6 +2,7 @@ structure.ts
 structure.md
 bun.lock
 .version_backup
+dxgi-capture.dll
 /build
 /dist
 /test
