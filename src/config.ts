@@ -25,6 +25,7 @@ const configPath = isCompiled
   : join(process.cwd(), "config.toml");
 
 let config: AppConfig = { ...DEFAULT_CONFIG };
+let configMtime: number | null = null;
 
 function validateConfig(raw: Partial<AppConfig>): AppConfig {
   const merged: AppConfig = {
@@ -48,10 +49,12 @@ export async function loadConfig(): Promise<AppConfig> {
   try {
     const file = Bun.file(configPath);
     if (await file.exists()) {
+      const stat = await file.stat();
       const text = await file.text();
       const { parse } = await import("smol-toml");
       const parsed = parse(text) as Partial<AppConfig>;
       config = validateConfig(parsed);
+      configMtime = stat?.mtime?.getTime() ?? null;
       logger.info(`Config loaded from: ${pathToFileURL(configPath).href}`);
       logger.info(`Config: ${JSON.stringify(config)}`);
     } else {
@@ -64,6 +67,21 @@ export async function loadConfig(): Promise<AppConfig> {
     process.exit(1);
   }
 
+  return config;
+}
+
+export async function loadConfigIfChanged(): Promise<AppConfig> {
+  try {
+    const file = Bun.file(configPath);
+    if (await file.exists()) {
+      const stat = await file.stat();
+      const mtime = stat?.mtime?.getTime() ?? null;
+      if (configMtime !== null && mtime === configMtime) {
+        return config;
+      }
+      return loadConfig();
+    }
+  } catch {}
   return config;
 }
 

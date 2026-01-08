@@ -1,4 +1,4 @@
-import { build, CompileBuildConfig } from "bun";
+import { build, type CompileBuildConfig } from "bun";
 import { buildConfig } from "./build";
 import { rmSync, existsSync } from "fs";
 import packageJson from "../package.json" with { type: "json" };

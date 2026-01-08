@@ -2,8 +2,6 @@ export type GameStateShape = {
   is_on_ground: boolean;
   is_shift_lock: boolean;
   is_skill_ready: boolean;
-  is_toss: boolean;
-  is_bar_arrow: boolean;
   skill_toggle: boolean;
 };
 
@@ -85,8 +83,6 @@ export const gameStates = createReactiveState<GameStateShape>({
   is_on_ground: false,
   is_shift_lock: false,
   is_skill_ready: false,
-  is_toss: false,
-  is_bar_arrow: false,
   skill_toggle: true,
 });
 

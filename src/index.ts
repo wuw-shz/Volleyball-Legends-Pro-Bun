@@ -6,7 +6,9 @@ process.stdout.write(`\x1b]0;VBL Pro v${packageJson.version}\x07`);
 import { loadConfig } from "@config";
 import { Logger } from "@utils";
 import { robloxStates } from "@states";
+import { extractDxgiDll } from "./utils/dll-extract";
 
+extractDxgiDll();
 loadConfig();
 
 const logger = new Logger(["Main", "cyan"]);

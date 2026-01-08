@@ -11,7 +11,7 @@ export interface GameWatchConfig {
   }[];
 }
 
-export const GAME_POLL_RATE = 10;
+export const GAME_POLL_RATE = 5;
 
 export interface RobloxWatchConfig {
   name: keyof RobloxStateShape;

@@ -1,4 +1,4 @@
-import { build, BuildConfig } from "bun";
+import { build, type BuildConfig } from "bun";
 import { existsSync, rmSync } from "fs";
 
 export const buildConfig: BuildConfig = {

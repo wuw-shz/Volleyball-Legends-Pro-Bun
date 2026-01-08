@@ -11,12 +11,13 @@ import {
 
 const workerLog = new Logger(["Worker", "cyan"], ["Game", "gray"]);
 
-const ENABLE_PROFILING = true;
+const ENABLE_PROFILING = false;
 const PROFILE_INTERVAL_MS = 1000;
 
 let sharedStateAccessor: StateAccessor | undefined;
 let isActive = false;
 let watcherAbort: AbortController | undefined;
+let useDxgi = screen.isDxgiAvailable();
 
 async function runWatcherLoop(signal: AbortSignal): Promise<void> {
   if (!sharedStateAccessor) {
@@ -87,6 +88,12 @@ async function runWatcherLoop(signal: AbortSignal): Promise<void> {
     relativeYs[i] = ys[i] - captureY;
   }
 
+  if (useDxgi) {
+    workerLog.info("Using DXGI capture (GPU-accelerated)");
+  } else {
+    workerLog.info("Using GDI capture (DXGI unavailable)");
+  }
+
   let loopCount = 0;
   let totalLoopNs = 0;
   let totalCaptureNs = 0;
@@ -99,7 +106,9 @@ async function runWatcherLoop(signal: AbortSignal): Promise<void> {
     const loopStart = ENABLE_PROFILING ? Bun.nanoseconds() : 0;
 
     const captureStart = ENABLE_PROFILING ? Bun.nanoseconds() : 0;
-    const imageData = screen.capture(captureX, captureY, captureW, captureH);
+    const imageData = useDxgi
+      ? screen.captureDXGI(captureX, captureY, captureW, captureH)
+      : screen.captureReuse(captureX, captureY, captureW, captureH);
     const captureTimeNs = ENABLE_PROFILING
       ? Bun.nanoseconds() - captureStart
       : 0;

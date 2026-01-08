@@ -174,8 +174,8 @@ function startStateWatcher(buffer: SharedArrayBuffer): void {
             robloxStates.set(key, current);
 
             if (current) {
-              const { loadConfig } = await import("../config");
-              await loadConfig();
+              const { loadConfigIfChanged } = await import("../config");
+              await loadConfigIfChanged();
               resumeListeners();
             } else {
               pauseListeners();

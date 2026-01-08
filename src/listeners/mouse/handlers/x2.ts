@@ -6,29 +6,22 @@ import { createHandler, waitFor } from "@utils";
 
 const isEnabled = () => programStates.get("is_enabled");
 const isActive = () => robloxStates.get("is_active");
-const isToss = () => gameStates.get("is_toss");
 const isOnGround = () => gameStates.get("is_on_ground");
 const isShiftLock = () => gameStates.get("is_shift_lock");
 const isSkillToggle = () => gameStates.get("skill_toggle");
 const isSkillReady = () => gameStates.get("is_skill_ready");
 
 const shouldAbortX2 = () =>
-  !isEnabled() ||
-  !isActive() ||
-  isToss() ||
-  (isOnGround() && !mouse.isPressed("x2"));
+  !isEnabled() || !isActive() || (isOnGround() && !mouse.isPressed("x2"));
 
 export default createHandler("x2", {
   down: async () => {
-    if (isToss()) return;
-
     const config = getConfig();
 
     while (mouse.isPressed("x2")) {
       await Bun.sleep(1);
 
-      if (!isEnabled() || !isActive() || isToss() || mouse.isPressed("x1"))
-        break;
+      if (!isEnabled() || !isActive() || mouse.isPressed("x1")) break;
 
       if (isOnGround()) {
         const shiftLocked = isShiftLock();
@@ -58,7 +51,6 @@ export default createHandler("x2", {
     }
   },
   up: async () => {
-    if (isToss()) return;
     if (mouse.isPressed("x1")) return;
 
     await waitFor(() => !isOnGround(), shouldAbortX2);
