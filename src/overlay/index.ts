@@ -9,8 +9,8 @@ import { CROSSHAIR_BASE64 } from "./crosshair-data";
 
 const logger = new Logger(["Overlay", "cyan"]);
 
-const CROSSHAIR_SCALE = 0.5;
-const ORIGINAL_SIZE = 26;
+const CROSSHAIR_SCALE = 0.2;
+const ORIGINAL_SIZE = 64;
 
 let isShowing = false;
 let intervalId: Timer | undefined;

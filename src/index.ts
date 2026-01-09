@@ -3,7 +3,7 @@ const startTime = Date.now();
 import packageJson from "../package.json" with { type: "json" };
 process.stdout.write(`\x1b]0;VBL Pro v${packageJson.version}\x07`);
 
-import { loadConfig } from "@config";
+import { loadConfig, loadConfigIfChanged } from "@config";
 import { Logger } from "@utils";
 import { robloxStates } from "@states";
 import { extractDxgiDll } from "./utils/dll-extract";
@@ -21,6 +21,8 @@ let overlayInitialized = false;
 
 robloxStates.onChange(async (name, value) => {
   if (name === "is_active" && value === true) {
+    await loadConfigIfChanged();
+
     if (!listenersInitialized) {
       const { initializeListeners } = await import("./listeners");
       await initializeListeners();
