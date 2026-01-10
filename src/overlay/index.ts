@@ -13,14 +13,18 @@ const CROSSHAIR_SCALE = 0.2;
 const ORIGINAL_SIZE = 64;
 
 let isShowing = false;
-let intervalId: Timer | undefined;
+let isInitialized = false;
 let pen: ReturnType<typeof overlay.createPen> | undefined;
 let crosshairImage: bigint | null = null;
+let unsubscribeRoblox: (() => void) | undefined;
+let unsubscribeProgram: (() => void) | undefined;
 
-let drawWidth = 0;
-let drawHeight = 0;
-let centerX = 0;
-let centerY = 0;
+const precomputed = {
+  drawWidth: 0,
+  drawHeight: 0,
+  drawX: 0,
+  drawY: 0,
+};
 
 function getAssetsDir(): string {
   const exeDir = dirname(process.execPath);
@@ -48,71 +52,112 @@ export async function extractCrosshair(): Promise<string> {
   return CROSSHAIR_PATH;
 }
 
-export async function startOverlay(): Promise<void> {
-  if (intervalId !== undefined) return;
-
-  await extractCrosshair();
+function initializeOverlayResources(): boolean {
+  if (isInitialized) return true;
 
   const size = screen.getScreenSize();
-  centerX = Math.floor(size.width / 2);
-  centerY = Math.floor(size.height / 2) - 150;
+  const centerX = size.width >> 1;
+  const centerY = (size.height >> 1) - 160;
 
-  drawWidth = Math.floor(ORIGINAL_SIZE * CROSSHAIR_SCALE);
-  drawHeight = Math.floor(ORIGINAL_SIZE * CROSSHAIR_SCALE);
+  precomputed.drawWidth = (ORIGINAL_SIZE * CROSSHAIR_SCALE) | 0;
+  precomputed.drawHeight = (ORIGINAL_SIZE * CROSSHAIR_SCALE) | 0;
+  precomputed.drawX = centerX - (precomputed.drawWidth >> 1);
+  precomputed.drawY = centerY - (precomputed.drawHeight >> 1);
 
   crosshairImage = Pen.loadImage(CROSSHAIR_PATH);
 
-  if (crosshairImage) {
-    logger.info(
-      `loaded crosshair (scale: ${CROSSHAIR_SCALE}x, size: ${drawWidth}x${drawHeight})`,
-    );
-  } else {
+  if (!crosshairImage) {
     logger.warn(`failed to load crosshair from: ${CROSSHAIR_PATH}`);
+    return false;
   }
 
-  intervalId = setInterval(() => {
-    const shouldShow =
-      robloxStates.get("is_active") && programStates.get("is_enabled");
+  pen = overlay.createPen(
+    { color: { r: 255, g: 255, b: 255 }, width: 1 },
+    {
+      x: precomputed.drawX,
+      y: precomputed.drawY,
+      width: precomputed.drawWidth,
+      height: precomputed.drawHeight,
+    },
+  );
 
-    if (shouldShow && !isShowing) {
-      if (crosshairImage) {
-        const halfW = Math.floor(drawWidth / 2);
-        const halfH = Math.floor(drawHeight / 2);
+  pen.drawImage(
+    crosshairImage,
+    0,
+    0,
+    precomputed.drawWidth,
+    precomputed.drawHeight,
+  );
 
-        pen = overlay.createPen(
-          { color: { r: 255, g: 255, b: 255 }, width: 1 },
-          {
-            x: centerX - halfW,
-            y: centerY - halfH,
-            width: drawWidth,
-            height: drawHeight,
-          },
-        );
+  logger.info(
+    `loaded crosshair (scale: ${CROSSHAIR_SCALE}x, size: ${precomputed.drawWidth}x${precomputed.drawHeight})`,
+  );
 
-        pen.drawImage(crosshairImage, 0, 0, drawWidth, drawHeight);
-      }
+  isInitialized = true;
+  return true;
+}
 
-      logger.info("showing");
-      isShowing = true;
-    } else if (!shouldShow && isShowing) {
-      overlay.destroy();
-      pen = undefined;
+function showOverlay(): void {
+  if (isShowing) {
+    overlay.forceTopmost();
+    return;
+  }
 
-      logger.info("hidden");
-      isShowing = false;
-    }
-  }, 150);
+  if (!isInitialized && !initializeOverlayResources()) {
+    return;
+  }
+
+  overlay.show();
+  overlay.forceTopmost();
+  logger.info("showing");
+  isShowing = true;
+}
+
+function hideOverlay(): void {
+  if (!isShowing) return;
+
+  overlay.hide();
+  logger.info("hidden");
+  isShowing = false;
+}
+
+function updateOverlay(): void {
+  const shouldShow =
+    robloxStates.get("is_active") && programStates.get("is_enabled");
+
+  if (shouldShow) {
+    showOverlay();
+  } else {
+    hideOverlay();
+  }
+}
+
+export async function startOverlay(): Promise<void> {
+  if (unsubscribeRoblox !== undefined) return;
+
+  await extractCrosshair();
+
+  unsubscribeRoblox = robloxStates.onChange(updateOverlay);
+  unsubscribeProgram = programStates.onChange(updateOverlay);
+
+  updateOverlay();
 }
 
 export function stopOverlay(): void {
-  if (intervalId !== undefined) {
-    clearInterval(intervalId);
-    intervalId = undefined;
+  unsubscribeRoblox?.();
+  unsubscribeProgram?.();
+  unsubscribeRoblox = undefined;
+  unsubscribeProgram = undefined;
+
+  if (pen) {
+    pen.destroy();
+    pen = undefined;
   }
+
   overlay.clear();
   overlay.destroy();
-  pen = undefined;
   isShowing = false;
+  isInitialized = false;
 
   if (crosshairImage) {
     Pen.disposeImage(crosshairImage);

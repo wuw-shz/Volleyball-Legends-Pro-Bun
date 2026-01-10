@@ -57,6 +57,12 @@ class Overlay {
     }
   }
 
+  forceTopmost(): void {
+    if (this.window) {
+      this.window.forceTopmost();
+    }
+  }
+
   destroy(): void {
     for (const pen of this.pens) {
       pen.destroy();

@@ -11,7 +11,7 @@ export interface GameWatchConfig {
   }[];
 }
 
-export const GAME_POLL_RATE = 5;
+export const GAME_POLL_RATE = 12;
 
 export interface RobloxWatchConfig {
   name: keyof RobloxStateShape;
@@ -42,6 +42,6 @@ export const GAME_WATCHER_CONFIGS: GameWatchConfig[] = [
 export const ROBLOX_WATCHER_CONFIGS: RobloxWatchConfig[] = [
   {
     name: "is_active",
-    pollRate: 200,
+    pollRate: 500,
   },
 ];

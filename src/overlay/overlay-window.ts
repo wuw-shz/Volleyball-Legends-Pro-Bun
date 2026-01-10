@@ -1,11 +1,20 @@
 import { user32, gdi32, kernel32 } from "./ffi-loader";
 import type { Pointer } from "bun:ffi";
-import { ptr, JSCallback, FFIType } from "bun:ffi";
+import { ptr, JSCallback, FFIType, toArrayBuffer } from "bun:ffi";
 import type { OverlayOptions } from "./types";
 
 const SW_SHOW = 5;
 const SW_HIDE = 0;
 const ULW_ALPHA = 0x00000002;
+
+const HWND_TOPMOST = -1n;
+const HWND_TOP = 0n;
+const SWP_NOACTIVATE = 0x0010;
+const SWP_NOMOVE = 0x0002;
+const SWP_NOSIZE = 0x0001;
+const SWP_SHOWWINDOW = 0x0040;
+
+const TOPMOST_ENFORCEMENT_INTERVAL = 100;
 
 const STYLES = {
   WS_POPUP: 0x80000000,
@@ -130,11 +139,14 @@ export class OverlayWindow {
   private memDC: bigint | null = null;
   private memBitmap: bigint | null = null;
   private oldBitmap: bigint | null = null;
-  private bitmapBits: Pointer | null = null;
+  private bitmapBits: bigint | null = null;
+  private bitmapSize: number = 0;
   private x: number = 0;
   private y: number = 0;
   private width: number = 0;
   private height: number = 0;
+  private topmostTimer: ReturnType<typeof setInterval> | null = null;
+  private lastForeground: bigint = 0n;
 
   constructor(private options: OverlayOptions = {}) {}
 
@@ -217,7 +229,8 @@ export class OverlayWindow {
       );
 
       if (this.memBitmap && ppvBits[0]) {
-        this.bitmapBits = ppvBits[0] as unknown as Pointer;
+        this.bitmapBits = ppvBits[0];
+        this.bitmapSize = this.width * this.height * 4;
         this.oldBitmap = gdi32.symbols.SelectObject(this.memDC, this.memBitmap);
       }
 
@@ -283,6 +296,15 @@ export class OverlayWindow {
     return this.hwnd !== null && this.hdc !== null;
   }
 
+  /**
+   * Publicly exposed method to force the overlay to topmost.
+   * Call when external state changes (e.g., game becomes active).
+   */
+  forceTopmost(): void {
+    this.enforceTopmost();
+    this.updateLayered();
+  }
+
   update(): void {
     if (!this.hwnd) return;
 
@@ -296,15 +318,16 @@ export class OverlayWindow {
   }
 
   clear(): void {
-    if (!this.memDC || !this.bitmapBits) {
+    if (!this.memDC || !this.bitmapBits || !this.bitmapSize) {
       return;
     }
 
-    const pixels = new Uint32Array(
-      this.bitmapBits as unknown as ArrayBuffer,
+    const buffer = toArrayBuffer(
+      this.bitmapBits as unknown as Pointer,
       0,
-      this.width * this.height,
+      this.bitmapSize,
     );
+    const pixels = new Uint32Array(buffer);
     pixels.fill(0);
   }
 
@@ -313,18 +336,72 @@ export class OverlayWindow {
       return;
     }
     showWindow(this.hwnd);
+    this.enforceTopmost();
     this.updateLayered();
     user32.symbols.UpdateWindow(this.hwnd);
+    this.startTopmostEnforcement();
   }
 
   hide(): void {
+    this.stopTopmostEnforcement();
     if (!this.hwnd) {
       return;
     }
     hideWindow(this.hwnd);
   }
 
+  /**
+   * Forces the overlay window to be topmost using SetWindowPos.
+   * Called periodically to maintain topmost status even when
+   * fullscreen games attempt to take exclusive foreground.
+   */
+  private enforceTopmost(): void {
+    if (!this.hwnd) return;
+
+    user32.symbols.SetWindowPos(
+      this.hwnd,
+      HWND_TOPMOST,
+      0,
+      0,
+      0,
+      0,
+      SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
+    );
+  }
+
+  /**
+   * Starts periodic topmost enforcement to keep overlay above
+   * fullscreen games that may try to take exclusive foreground.
+   */
+  private startTopmostEnforcement(): void {
+    if (this.topmostTimer !== null) return;
+
+    this.topmostTimer = setInterval(() => {
+      if (!this.hwnd) return;
+
+      const currentForeground = user32.symbols.GetForegroundWindow();
+
+      if (currentForeground !== this.lastForeground) {
+        this.lastForeground = currentForeground;
+        this.enforceTopmost();
+        this.updateLayered();
+      }
+    }, TOPMOST_ENFORCEMENT_INTERVAL);
+  }
+
+  /**
+   * Stops the periodic topmost enforcement timer.
+   */
+  private stopTopmostEnforcement(): void {
+    if (this.topmostTimer !== null) {
+      clearInterval(this.topmostTimer);
+      this.topmostTimer = null;
+    }
+  }
+
   destroy(): void {
+    this.stopTopmostEnforcement();
+
     if (this.memDC) {
       if (this.oldBitmap) {
         gdi32.symbols.SelectObject(this.memDC, this.oldBitmap);

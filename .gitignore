@@ -3,9 +3,13 @@ structure.md
 bun.lock
 .version_backup
 dxgi-capture.dll
+/.vscode
 /build
 /dist
 /test
+/assets
+src/screen/native/build
+src/screen/native/Release
 
 config.toml
 vbl-pro-bun.zip

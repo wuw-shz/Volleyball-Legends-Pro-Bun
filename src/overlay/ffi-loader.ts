@@ -71,6 +71,9 @@ export const user32 = dlopen(`user32.${suffix}`, {
   RegisterClassExW: { args: [FFIType.ptr], returns: FFIType.u16 },
   LoadCursorW: { args: [FFIType.u64, FFIType.u64], returns: FFIType.u64 },
   ShowWindow: { args: [FFIType.u64, FFIType.int], returns: FFIType.bool },
+  GetForegroundWindow: { args: [], returns: FFIType.u64 },
+  BringWindowToTop: { args: [FFIType.u64], returns: FFIType.bool },
+  SetForegroundWindow: { args: [FFIType.u64], returns: FFIType.bool },
 });
 
 export const kernel32 = dlopen(`kernel32.${suffix}`, {
